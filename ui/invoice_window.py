@@ -82,6 +82,9 @@ class InvoiceWindow(QWidget):
         self.billing_type = QComboBox()
         self.billing_type.addItems(["Normal Bill", "GST Bill"])
 
+        self.billing_type.currentIndexChanged.connect(
+            self.update_invoice_total)
+
         self.payment_status_select = QComboBox()
         self.payment_status_select.addItems(["Paid", "Partial", "Unpaid"])
 
@@ -95,6 +98,17 @@ class InvoiceWindow(QWidget):
         self.total_label = QLabel("💰 Total: ₹0.00")
         self.total_label.setFont(QFont("Arial", 14, QFont.Bold))
         layout.addWidget(self.total_label)
+
+        # 💸 GST Total Label (Hidden by default)
+        self.gst_total_label = QLabel("GST Total: ₹0.00")
+        self.gst_total_label.setFont(QFont("Arial", 12, QFont.Bold))
+        self.gst_total_label.setVisible(False)  # Hide initially
+        layout.addWidget(self.gst_total_label)
+
+        # 💳 Grand Total Label (Always visible)
+        self.grand_total_label = QLabel("💳 Grand Total: ₹0.00")
+        self.grand_total_label.setFont(QFont("Arial", 14, QFont.Bold))
+        layout.addWidget(self.grand_total_label)
 
         # 📥 Generate PDF Button
         generate_btn = QPushButton("📥 Generate PDF & Save Invoice")
@@ -191,10 +205,30 @@ class InvoiceWindow(QWidget):
 
     def update_invoice_total(self):
         """
-        Update total display.
+        Update total, GST total, and Grand Total display.
         """
-        self.total_amount = sum(item['total'] for item in self.invoice_items)
-        self.total_label.setText(f"💰 Total: ₹{self.total_amount:.2f}")
+        item_total = sum(item['total'] for item in self.invoice_items)
+        grand_total = item_total
+        gst_total = 0.0
+
+        if self.billing_type.currentText() == "GST Bill":
+            # Calculate GST Total
+            gst_total = sum(item['total'] * (item['gst'] / 100)
+                            for item in self.invoice_items)
+            grand_total += gst_total
+
+            # Show both Item Total and GST Total
+            self.total_label.setText(f"💰 Item Total: ₹{item_total:.2f}")
+            self.gst_total_label.setText(f"🧾 GST Total: ₹{gst_total:.2f}")
+            self.gst_total_label.setVisible(True)
+        else:
+            # Hide GST Total for Normal Bill
+            self.total_label.setText(f"💰 Total: ₹{item_total:.2f}")
+            self.gst_total_label.setVisible(False)
+
+        # Always show Grand Total in bold
+        self.grand_total_label.setText(f"💳 Grand Total: ₹{grand_total:.2f}")
+        self.grand_total_label.setVisible(True)
 
     def generate_pdf(self):
         """
@@ -208,10 +242,24 @@ class InvoiceWindow(QWidget):
             # ✅ Customer details
             selected_customer = self.customer_select.currentText().split(" (")[
                 0]
-            customer_name = selected_customer if selected_customer != "➕ Add New Guest Customer" else "Guest Customer"
-            customer_phone = self.customer_phone_input.text().strip()
-            customer_address = "Address not provided"
-            customer_gst_no = "22AAAAA0000A1Z5"
+
+            if selected_customer != "➕ Add New Guest Customer" and selected_customer in self.customer_lookup:
+                # ✅ Existing customer in DB
+                customer_phone, customer_address, customer_gst_no = self.customer_lookup[
+                    selected_customer]
+                customer_name = selected_customer
+
+                # If no GST in DB, leave blank
+                customer_gst_no = customer_gst_no if customer_gst_no else ""
+                customer_address = customer_address if customer_address else ""
+            else:
+                # 🆕 New Guest customer
+                customer_name = self.customer_select.currentText()
+                customer_phone = self.customer_phone_input.text().strip()
+                customer_address = self.customer_address_input.text().strip() if hasattr(self,
+                                                                                         "customer_address_input") else ""
+                customer_gst_no = self.customer_gst_input.text().strip() if hasattr(self,
+                                                                                    "customer_gst_input") else ""
 
             # Save customer
             customer_id = save_customer(
@@ -401,8 +449,8 @@ class InvoiceWindow(QWidget):
             c.drawString(width - 130, 35, "Authorized Signatory")
 
             # --- FOOTER ---
-            c.setFont("Helvetica-Oblique", 8)
-            c.drawString(30, 30, "Thank you for your business!")
+            # c.setFont("Helvetica-Oblique", 8)
+            # c.drawString(30, 30, "Thank you for your business!")
 
             c.save()
 

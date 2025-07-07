@@ -158,15 +158,15 @@ class GeneralStockWindow(QWidget):
                 code = code_input.text().strip().upper()
                 name = name_input.text().strip()
                 unit = unit_input.text().strip()
-                hsn_code = hsn_input.text().strip()
+                hsn_code = hsn_input.text().strip() or ""
                 gst_percent = float(gst_input.text().strip())
                 purchase_price = float(purchase_price_input.text().strip())
                 selling_price = float(selling_price_input.text().strip())
                 quantity = int(quantity_input.text().strip())
 
-                if not code or not name or not hsn_code:
+                if not code or not name:
                     QMessageBox.warning(
-                        self, "Validation Error", "⚠️ Item Code, Name and HSN are required.")
+                        self, "Validation Error", "⚠️ Item Code and Name are required.")
                     return
 
                 # Check if item code exists

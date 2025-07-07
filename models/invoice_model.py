@@ -1,3 +1,10 @@
+import os
+from models.stock_model import initialize_db
+
+# Check if DB exists, if not create it
+if not os.path.exists("data/database.db"):
+    initialize_db()
+
 import sqlite3
 import datetime
 from models.stock_model import DB_FILE
@@ -14,6 +21,7 @@ def initialize_invoice_db():
             name TEXT,
             phone TEXT,
             address TEXT,
+            gst_no TEXT,  -- ✅ Added GST No field
             outstanding_balance REAL DEFAULT 0.0
         )
     ''')
@@ -54,7 +62,7 @@ def initialize_invoice_db():
     conn.close()
 
 
-def save_customer(name, phone, address):
+def save_customer(name, phone, address, gst_no=None):
     """
     Save customer if not exists, return customer ID.
     """
@@ -68,8 +76,10 @@ def save_customer(name, phone, address):
     if result:
         customer_id = result[0]
     else:
-        c.execute('INSERT INTO customers (name, phone, address) VALUES (?, ?, ?)',
-                  (name, phone, address))
+        c.execute('''
+            INSERT INTO customers (name, phone, address, gst_no)
+            VALUES (?, ?, ?, ?)
+        ''', (name, phone, address, gst_no))
         customer_id = c.lastrowid
 
     conn.commit()
@@ -201,7 +211,7 @@ def get_all_customers():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute('''
-        SELECT name, phone, address,
+        SELECT name, phone, address, gst_no,
                (SELECT SUM(total_amount) FROM invoices WHERE customer_id = customers.id) as total_sales,
                outstanding_balance
         FROM customers

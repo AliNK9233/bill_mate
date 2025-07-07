@@ -4,7 +4,10 @@ from PyQt5.QtWidgets import (
     QFormLayout, QDialogButtonBox
 )
 from PyQt5.QtGui import QIcon
-from models.invoice_model import get_all_customers, get_customer_sales_summary, update_customer_details
+from models.invoice_model import (
+    get_all_customers, get_customer_sales_summary,
+    update_customer_details, save_customer
+)
 from openpyxl import Workbook
 import datetime
 
@@ -28,13 +31,15 @@ class CustomerWindow(QWidget):
             "font-size: 18px; font-weight: bold; margin: 10px 0;")
         layout.addWidget(title_label)
 
-        # Search Bar
-        search_layout = QHBoxLayout()
+        # Search Bar + Buttons
+        top_layout = QHBoxLayout()
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("🔍 Search Customer Name / Phone")
         self.search_input.textChanged.connect(self.search_customers)
 
-        # Buttons
+        add_btn = QPushButton("➕ Add Customer")
+        add_btn.clicked.connect(self.add_customer)
+
         edit_btn = QPushButton("✏️ Edit Customer")
         edit_btn.clicked.connect(self.edit_customer)
 
@@ -44,18 +49,19 @@ class CustomerWindow(QWidget):
         export_btn = QPushButton("📥 Export Customers to Excel")
         export_btn.clicked.connect(self.export_customers_to_excel)
 
-        search_layout.addWidget(self.search_input)
-        search_layout.addWidget(edit_btn)
-        search_layout.addWidget(view_sales_btn)
-        search_layout.addWidget(export_btn)
+        top_layout.addWidget(self.search_input)
+        top_layout.addWidget(add_btn)
+        top_layout.addWidget(edit_btn)
+        top_layout.addWidget(view_sales_btn)
+        top_layout.addWidget(export_btn)
 
-        layout.addLayout(search_layout)
+        layout.addLayout(top_layout)
 
         # Customer Table
         self.customer_table = QTableWidget()
-        self.customer_table.setColumnCount(5)
+        self.customer_table.setColumnCount(6)
         self.customer_table.setHorizontalHeaderLabels([
-            "Name", "Phone", "Address", "Total Sales (₹)", "Outstanding Balance (₹)"
+            "Name", "Phone", "Address", "GST No", "Total Sales (₹)", "Outstanding Balance (₹)"
         ])
         layout.addWidget(self.customer_table)
 
@@ -90,6 +96,53 @@ class CustomerWindow(QWidget):
             if search_text in row[0].lower() or search_text in row[1]
         ]
         self.populate_table(filtered_data)
+
+    def add_customer(self):
+        """
+        Add a new customer.
+        """
+        dialog = QDialog(self)
+        dialog.setWindowTitle("➕ Add New Customer")
+        form_layout = QFormLayout(dialog)
+
+        name_input = QLineEdit()
+        phone_input = QLineEdit()
+        address_input = QLineEdit()
+        gst_input = QLineEdit()
+
+        form_layout.addRow("Name:", name_input)
+        form_layout.addRow("Phone:", phone_input)
+        form_layout.addRow("Address:", address_input)
+        form_layout.addRow("GST No (Optional):", gst_input)
+
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        form_layout.addWidget(button_box)
+
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+
+        if dialog.exec_() == QDialog.Accepted:
+            try:
+                name = name_input.text().strip()
+                phone = phone_input.text().strip()
+                address = address_input.text().strip()
+                gst_no = gst_input.text().strip() or None
+
+                if not name or not phone:
+                    QMessageBox.warning(
+                        self, "Validation Error",
+                        "⚠️ Customer Name and Phone are required."
+                    )
+                    return
+
+                save_customer(name, phone, address, gst_no)
+                QMessageBox.information(
+                    self, "Success", "✅ Customer added successfully.")
+                self.load_customers()
+            except Exception as e:
+                QMessageBox.warning(
+                    self, "Error", f"❌ Failed to add customer: {e}")
 
     def edit_customer(self):
         """
@@ -153,6 +206,12 @@ class CustomerWindow(QWidget):
 
         if summary:
             total_sales, pending_invoices = summary
+            # Fix: Convert None to 0
+            if total_sales is None:
+                total_sales = 0.0
+            if pending_invoices is None:
+                pending_invoices = 0
+
             QMessageBox.information(
                 self,
                 "Customer Sales Summary",

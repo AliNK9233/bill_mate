@@ -5,13 +5,30 @@ __pycache__/
 
 # Environment
 .env
+env/
+env1/
+venv/
 
-# Database
+# Database files
 *.db
 
-# OS files
+# OS generated files
 .DS_Store
 Thumbs.db
 
-# Virtualenv
-venv/
+# PyInstaller build folders
+build/
+dist/
+*.spec
+
+# Logs
+*.log
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Databases
+*.db

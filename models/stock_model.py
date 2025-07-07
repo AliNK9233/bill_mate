@@ -19,7 +19,7 @@ def initialize_db():
             name TEXT NOT NULL,
             code TEXT  NOT NULL,
             unit TEXT NOT NULL,
-            hsn_code TEXT NOT NULL,
+            hsn_code TEXT ,
             gst_percent REAL NOT NULL
         )
     ''')
@@ -42,12 +42,19 @@ def initialize_db():
 
 # Add stock item
 def add_stock_item(name, code, unit, hsn_code, gst_percent):
+    """
+    Add a new stock item to the database and return its stock_id.
+    """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("INSERT INTO stock (name, code, unit, hsn_code, gst_percent) VALUES (?, ?, ?, ?, ?)",
-              (name, code, unit, hsn_code, gst_percent))
+    c.execute("""
+        INSERT INTO stock (name, code, unit, hsn_code, gst_percent)
+        VALUES (?, ?, ?, ?, ?)
+    """, (name, code, unit, hsn_code, gst_percent))
+    stock_id = c.lastrowid  # Get the ID of the newly inserted row
     conn.commit()
     conn.close()
+    return stock_id
 
 # Add stock batch
 
