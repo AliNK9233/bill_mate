@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QGroupBox, QGridLayout
+    QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QGroupBox,
+    QGridLayout, QPushButton, QHBoxLayout
 )
 from PyQt5.QtGui import QIcon
 from models.dashboard_model import (
@@ -16,6 +17,7 @@ class DashboardWindow(QWidget):
         self.setWindowIcon(QIcon("data/logos/rayani_logo.png"))
 
         self.setup_ui()
+        self.load_all_dashboard_data()  # Load everything initially
 
     def setup_ui(self):
         layout = QVBoxLayout()
@@ -26,29 +28,30 @@ class DashboardWindow(QWidget):
             "font-size: 22px; font-weight: bold; margin: 10px 0;")
         layout.addWidget(title_label)
 
+        # 🔄 Refresh Button
+        refresh_btn = QPushButton("🔄 Refresh Dashboard")
+        refresh_btn.setStyleSheet(
+            "font-size: 14px; font-weight: bold; padding: 5px;")
+        refresh_btn.clicked.connect(self.load_all_dashboard_data)
+        layout.addWidget(refresh_btn)
+
         # Summary Cards
         summary_box = QGroupBox("Overview")
         summary_layout = QGridLayout()
 
-        total_sales = get_total_sales()
-        total_customers = get_total_customers()
-        total_pending = get_total_pending_balance()
-
-        sales_label = QLabel(f"🛒 Total Sales: ₹{total_sales:.2f}")
-        sales_label.setStyleSheet(
+        self.sales_label = QLabel()
+        self.sales_label.setStyleSheet(
             "font-size: 16px; font-weight: bold; color: green;")
-
-        customers_label = QLabel(f"👥 Total Customers: {total_customers}")
-        customers_label.setStyleSheet(
+        self.customers_label = QLabel()
+        self.customers_label.setStyleSheet(
             "font-size: 16px; font-weight: bold; color: blue;")
-
-        pending_label = QLabel(f"🧾 Pending Balance: ₹{total_pending:.2f}")
-        pending_label.setStyleSheet(
+        self.pending_label = QLabel()
+        self.pending_label.setStyleSheet(
             "font-size: 16px; font-weight: bold; color: red;")
 
-        summary_layout.addWidget(sales_label, 0, 0)
-        summary_layout.addWidget(customers_label, 0, 1)
-        summary_layout.addWidget(pending_label, 0, 2)
+        summary_layout.addWidget(self.sales_label, 0, 0)
+        summary_layout.addWidget(self.customers_label, 0, 1)
+        summary_layout.addWidget(self.pending_label, 0, 2)
 
         summary_box.setLayout(summary_layout)
         layout.addWidget(summary_box)
@@ -62,8 +65,6 @@ class DashboardWindow(QWidget):
         self.top_customers_table.setHorizontalHeaderLabels([
             "Customer Name", "Phone", "Total Sales (₹)"
         ])
-        self.load_top_customers()
-
         top_customers_layout.addWidget(self.top_customers_table)
         top_customers_box.setLayout(top_customers_layout)
         layout.addWidget(top_customers_box)
@@ -77,13 +78,31 @@ class DashboardWindow(QWidget):
         self.low_stock_table.setHorizontalHeaderLabels([
             "Item Name", "Item Code", "Available Qty"
         ])
-        self.load_low_stock_items()
-
         low_stock_layout.addWidget(self.low_stock_table)
         low_stock_box.setLayout(low_stock_layout)
         layout.addWidget(low_stock_box)
 
         self.setLayout(layout)
+
+    def load_all_dashboard_data(self):
+        """
+        Refresh dashboard data.
+        """
+        self.load_summary()
+        self.load_top_customers()
+        self.load_low_stock_items()
+
+    def load_summary(self):
+        """
+        Load total sales, customers, and pending balance.
+        """
+        total_sales = get_total_sales()
+        total_customers = get_total_customers()
+        total_pending = get_total_pending_balance()
+
+        self.sales_label.setText(f"🛒 Total Sales: ₹{total_sales:.2f}")
+        self.customers_label.setText(f"👥 Total Customers: {total_customers}")
+        self.pending_label.setText(f"🧾 Pending Balance: ₹{total_pending:.2f}")
 
     def load_top_customers(self):
         """

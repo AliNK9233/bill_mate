@@ -1,7 +1,8 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit, QTableWidget, QTableWidgetItem,
-    QHBoxLayout, QDialog, QFormLayout, QDialogButtonBox, QMessageBox, QComboBox, QCompleter
+    QHBoxLayout, QDialog, QFormLayout, QDialogButtonBox, QMessageBox, QComboBox, QCompleter, QTextEdit
 )
+
 from PyQt5.QtGui import QIcon, QFont
 from models.invoice_model import save_invoice, get_next_invoice_number, get_all_customers, save_customer
 from models.stock_model import get_consolidated_stock, reduce_stock_quantity
@@ -12,6 +13,7 @@ import datetime
 from models.invoice_model import save_customer
 from num2words import num2words
 from reportlab.lib import colors
+from models.company_model import get_company_profile
 
 
 class InvoiceWindow(QWidget):
@@ -26,6 +28,18 @@ class InvoiceWindow(QWidget):
 
     def setup_ui(self):
         layout = QVBoxLayout()
+
+        # --- Job Work UI ---
+        self.job_description = QTextEdit()
+        self.job_description.setPlaceholderText("📝 Enter Job Description")
+        self.job_description.hide()  # Hide initially
+
+        self.job_amount_input = QLineEdit()
+        self.job_amount_input.setPlaceholderText("💰 Enter Job Work Amount")
+        self.job_amount_input.hide()  # Hide initially
+
+        layout.addWidget(self.job_description)
+        layout.addWidget(self.job_amount_input)
 
         # 🧑 Customer Details
         customer_layout = QHBoxLayout()
@@ -116,6 +130,20 @@ class InvoiceWindow(QWidget):
         layout.addWidget(generate_btn)
 
         self.setLayout(layout)
+
+    def toggle_invoice_type(self):
+        if self.invoice_type_select.currentText() == "Job Work Invoice":
+            self.item_search.hide()
+            self.qty_input.hide()
+            self.invoice_table.hide()
+            self.job_description.show()
+            self.job_amount_input.show()
+        else:
+            self.item_search.show()
+            self.qty_input.show()
+        self.invoice_table.show()
+        self.job_description.hide()
+        self.job_amount_input.hide()
 
     def load_customer_options(self):
         """
@@ -239,6 +267,13 @@ class InvoiceWindow(QWidget):
         """
 
         try:
+            profile = get_company_profile()
+            company_name = profile[1]
+            gst_no = profile[2]
+            address = profile[3]
+            email = profile[4]
+            phone = profile[5]
+            logo_path = profile[6]
             # ✅ Customer details
             selected_customer = self.customer_select.currentText().split(" (")[
                 0]
@@ -466,3 +501,128 @@ class InvoiceWindow(QWidget):
         except Exception as e:
             QMessageBox.warning(
                 self, "Error", f"❌ Failed to generate PDF: {e}")
+
+    def generate_job_work_pdf(self):
+        """
+        Generate Job Work PDF Invoice with simple structure (no stock items).
+        """
+        try:
+            profile = get_company_profile()
+            company_name = profile[1]
+            gst_no = profile[2]
+            address = profile[3]
+            email = profile[4]
+            phone = profile[5]
+            logo_path = profile[6]
+
+            # ✅ Customer details
+            customer_name = self.customer_select.currentText().strip()
+            customer_phone = self.customer_phone_input.text().strip()
+            customer_address = self.customer_address_input.text().strip()
+            customer_gst_no = self.customer_gst_input.text().strip()
+
+            # Save customer
+            customer_id = save_customer(
+                customer_name, customer_phone, customer_address, customer_gst_no
+            )
+
+            # Job Work Data
+            job_description = self.job_description.toPlainText().strip()
+            job_amount = float(self.job_amount_input.text().strip() or 0.0)
+
+            paid_amount = float(self.paid_amount_input.text().strip() or 0.0)
+            balance = job_amount - paid_amount
+            status = "Paid" if balance <= 0 else (
+                "Partial" if paid_amount > 0 else "Unpaid")
+            payment_method = "Cash"
+
+            # Save invoice to DB
+            invoice_no = get_next_invoice_number()
+            save_invoice(
+                customer_id=customer_id,
+                total_amount=job_amount,
+                paid_amount=paid_amount,
+                balance=balance,
+                payment_method=payment_method,
+                status=status,
+                items=[]  # No items
+            )
+
+            # Generate PDF
+            filename = f"JobWork_Invoice_{invoice_no}.pdf"
+            c = canvas.Canvas(filename, pagesize=A4)
+            width, height = A4
+
+            # --- Header ---
+            c.setFont("Helvetica-Bold", 16)
+            c.drawString(50, height - 50, company_name)
+            c.setFont("Helvetica", 10)
+            c.drawString(50, height - 65, f"GST No: {gst_no}")
+            c.drawString(50, height - 80, f"Address: {address}")
+            c.drawString(50, height - 95, f"Email: {email} | Phone: {phone}")
+
+            c.setFont("Helvetica-Bold", 12)
+            c.drawRightString(width - 50, height - 50,
+                              f"Invoice No: {invoice_no}")
+            c.drawRightString(width - 50, height - 65,
+                              f"Date: {datetime.date.today()}")
+
+            # --- Customer Info ---
+            y = height - 130
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(50, y, "Billed To:")
+            c.setFont("Helvetica", 10)
+            c.drawString(130, y, customer_name)
+            y -= 15
+            if customer_address:
+                c.drawString(130, y, f"Address: {customer_address}")
+                y -= 15
+            if customer_gst_no:
+                c.drawString(130, y, f"GST No: {customer_gst_no}")
+                y -= 15
+            c.drawString(130, y, f"Phone: {customer_phone}")
+
+            y -= 30
+
+            # --- Job Description ---
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(50, y, "Job Work Description:")
+            y -= 15
+            c.setFont("Helvetica", 10)
+            c.drawString(60, y, job_description)
+
+            y -= 50
+
+            # --- Totals ---
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(50, y, f"Total Amount (₹):")
+            c.drawRightString(width - 50, y, f"{job_amount:.2f}")
+
+            y -= 20
+            if paid_amount > 0:
+                c.setFont("Helvetica", 10)
+                c.drawString(50, y, f"Paid Amount (₹):")
+                c.drawRightString(width - 50, y, f"{paid_amount:.2f}")
+                y -= 15
+
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(50, y, f"Balance (₹):")
+            c.drawRightString(width - 50, y, f"{balance:.2f}")
+
+            # --- Footer ---
+            y -= 50
+            c.setFont("Helvetica-Oblique", 10)
+            c.drawString(50, y, "Thank you for your business!")
+            c.save()
+
+            QMessageBox.information(
+                self, "Success", f"✅ Job Work Invoice saved as {filename}")
+
+            # Reset UI
+            self.job_description.clear()
+            self.job_amount_input.clear()
+            self.paid_amount_input.clear()
+
+        except Exception as e:
+            QMessageBox.warning(
+                self, "Error", f"❌ Failed to generate Job Work PDF: {e}")

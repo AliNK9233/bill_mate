@@ -3,12 +3,14 @@ from PyQt5.QtWidgets import (
     QPushButton, QDialog, QFormLayout, QDialogButtonBox, QHBoxLayout
 )
 from PyQt5.QtGui import QIcon
+from ui import jobwork_invoice_window
 from ui.general_stock_window import GeneralStockWindow
 from ui.admin_stock_window import AdminStockWindow
 from ui.dashboard_window import DashboardWindow
 from ui.sales_window import SalesWindow
 from ui.customer_window import CustomerWindow
 from ui.invoice_window import InvoiceWindow
+from ui.profile_window import CompanyProfileWindow
 
 
 class MainWindow(QWidget):
@@ -31,6 +33,10 @@ class MainWindow(QWidget):
         # 🧾 Invoice Tab (Default Tab)
         self.invoice_tab = InvoiceWindow()
         self.tabs.addTab(self.invoice_tab, "🧾 Invoice")
+
+        # 🧾 Job Work Invoice Tab
+        self.jobwork_invoice_tab = jobwork_invoice_window.JobWorkInvoiceWindow()
+        self.tabs.addTab(self.jobwork_invoice_tab, "🧾 Job Work Invoice")
 
         # 📦 General Stock Tab (For Users)
         self.general_stock_tab = GeneralStockWindow()
@@ -110,6 +116,10 @@ class MainWindow(QWidget):
         self.customer_tab = CustomerWindow()
         self.tabs.addTab(self.customer_tab, "👥 Customer Management")
         self.admin_tabs.append(self.customer_tab)
+
+        # 🏢 Company Profile Tab
+        self.profile_tab = CompanyProfileWindow()
+        self.tabs.addTab(self.profile_tab, "🏢 Company Profile")
 
     def logout_admin(self):
         """
