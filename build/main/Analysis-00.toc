@@ -1684,13 +1684,13 @@
    'C:\\Users\\Ali '
    'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\stringprep.py',
    'PYMODULE'),
-  ('_py_abc',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\_py_abc.py',
-   'PYMODULE'),
   ('tracemalloc',
    'C:\\Users\\Ali '
    'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\tracemalloc.py',
+   'PYMODULE'),
+  ('_py_abc',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\_py_abc.py',
    'PYMODULE'),
   ('ui.main_window',
    'C:\\Users\\Ali Akbar\\Desktop\\stock\\ui\\main_window.py',
@@ -4036,85 +4036,85 @@
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\numpy.libs\\libopenblas64__v0.3.23-293-gc2f4bdbb-gcc_10_3_0-2bde3a66a51006b2b53eb373ff767a3f.dll',
    'BINARY'),
+  ('PyQt5\\Qt5\\bin\\libGLESv2.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\libGLESv2.dll',
+   'BINARY'),
   ('PyQt5\\Qt5\\bin\\opengl32sw.dll',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\opengl32sw.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\bin\\d3dcompiler_47.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\d3dcompiler_47.dll',
    'BINARY'),
   ('PyQt5\\Qt5\\bin\\libEGL.dll',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\libEGL.dll',
    'BINARY'),
-  ('PyQt5\\Qt5\\bin\\libGLESv2.dll',
+  ('PyQt5\\Qt5\\bin\\d3dcompiler_47.dll',
    'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\libGLESv2.dll',
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\d3dcompiler_47.dll',
    'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\imageformats\\qico.dll',
+  ('PyQt5\\Qt5\\plugins\\platforms\\qoffscreen.dll',
    'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qico.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\imageformats\\qtiff.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qtiff.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\generic\\qtuiotouchplugin.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\generic\\qtuiotouchplugin.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\platforms\\qminimal.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\platforms\\qminimal.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\platformthemes\\qxdgdesktopportal.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\platformthemes\\qxdgdesktopportal.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\imageformats\\qgif.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qgif.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\imageformats\\qwebp.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qwebp.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\imageformats\\qjpeg.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qjpeg.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\platforms\\qwindows.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\platforms\\qwindows.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\imageformats\\qsvg.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qsvg.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\platforms\\qwebgl.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\platforms\\qwebgl.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\imageformats\\qtga.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qtga.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\imageformats\\qicns.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qicns.dll',
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\platforms\\qoffscreen.dll',
    'BINARY'),
   ('PyQt5\\Qt5\\plugins\\iconengines\\qsvgicon.dll',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\iconengines\\qsvgicon.dll',
    'BINARY'),
+  ('PyQt5\\Qt5\\plugins\\platforms\\qwindows.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\platforms\\qwindows.dll',
+   'BINARY'),
+  ('PyQt5\\Qt5\\plugins\\imageformats\\qicns.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qicns.dll',
+   'BINARY'),
+  ('PyQt5\\Qt5\\plugins\\generic\\qtuiotouchplugin.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\generic\\qtuiotouchplugin.dll',
+   'BINARY'),
+  ('PyQt5\\Qt5\\plugins\\imageformats\\qtga.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qtga.dll',
+   'BINARY'),
+  ('PyQt5\\Qt5\\plugins\\platformthemes\\qxdgdesktopportal.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\platformthemes\\qxdgdesktopportal.dll',
+   'BINARY'),
+  ('PyQt5\\Qt5\\plugins\\imageformats\\qico.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qico.dll',
+   'BINARY'),
+  ('PyQt5\\Qt5\\plugins\\imageformats\\qwebp.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qwebp.dll',
+   'BINARY'),
+  ('PyQt5\\Qt5\\plugins\\imageformats\\qsvg.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qsvg.dll',
+   'BINARY'),
   ('PyQt5\\Qt5\\plugins\\imageformats\\qwbmp.dll',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qwbmp.dll',
    'BINARY'),
-  ('PyQt5\\Qt5\\plugins\\platforms\\qoffscreen.dll',
+  ('PyQt5\\Qt5\\plugins\\platforms\\qminimal.dll',
    'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\platforms\\qoffscreen.dll',
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\platforms\\qminimal.dll',
+   'BINARY'),
+  ('PyQt5\\Qt5\\plugins\\imageformats\\qgif.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qgif.dll',
+   'BINARY'),
+  ('PyQt5\\Qt5\\plugins\\platforms\\qwebgl.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\platforms\\qwebgl.dll',
+   'BINARY'),
+  ('PyQt5\\Qt5\\plugins\\imageformats\\qtiff.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qtiff.dll',
+   'BINARY'),
+  ('PyQt5\\Qt5\\plugins\\imageformats\\qjpeg.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\plugins\\imageformats\\qjpeg.dll',
    'BINARY'),
   ('PyQt5\\Qt5\\plugins\\styles\\qwindowsvistastyle.dll',
    'C:\\Users\\Ali '
@@ -4292,17 +4292,17 @@
    'C:\\Users\\Ali '
    'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\VCRUNTIME140.dll',
    'BINARY'),
-  ('PyQt5\\Qt5\\bin\\VCRUNTIME140.dll',
+  ('PyQt5\\Qt5\\bin\\MSVCP140.dll',
    'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\VCRUNTIME140.dll',
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\MSVCP140.dll',
    'BINARY'),
   ('PyQt5\\Qt5\\bin\\VCRUNTIME140_1.dll',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\VCRUNTIME140_1.dll',
    'BINARY'),
-  ('PyQt5\\Qt5\\bin\\MSVCP140.dll',
+  ('PyQt5\\Qt5\\bin\\VCRUNTIME140.dll',
    'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\MSVCP140.dll',
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\VCRUNTIME140.dll',
    'BINARY'),
   ('PyQt5\\Qt5\\bin\\Qt5Core.dll',
    'C:\\Users\\Ali '
@@ -4312,6 +4312,14 @@
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\Qt5Gui.dll',
    'BINARY'),
+  ('PyQt5\\Qt5\\bin\\Qt5Svg.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\Qt5Svg.dll',
+   'BINARY'),
+  ('VCRUNTIME140_1.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\VCRUNTIME140_1.dll',
+   'BINARY'),
   ('PyQt5\\Qt5\\bin\\Qt5Network.dll',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\Qt5Network.dll',
@@ -4320,21 +4328,13 @@
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\Qt5DBus.dll',
    'BINARY'),
-  ('VCRUNTIME140_1.dll',
+  ('PyQt5\\Qt5\\bin\\Qt5Quick.dll',
    'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\VCRUNTIME140_1.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\bin\\Qt5Svg.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\Qt5Svg.dll',
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\Qt5Quick.dll',
    'BINARY'),
   ('PyQt5\\Qt5\\bin\\Qt5WebSockets.dll',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\Qt5WebSockets.dll',
-   'BINARY'),
-  ('PyQt5\\Qt5\\bin\\Qt5Quick.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\Qt5Quick.dll',
    'BINARY'),
   ('PyQt5\\Qt5\\bin\\Qt5Widgets.dll',
    'C:\\Users\\Ali '
@@ -4364,13 +4364,13 @@
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\MSVCP140_1.dll',
    'BINARY'),
-  ('PyQt5\\Qt5\\bin\\Qt5QmlModels.dll',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\Qt5QmlModels.dll',
-   'BINARY'),
   ('PyQt5\\Qt5\\bin\\Qt5Qml.dll',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\Qt5Qml.dll',
+   'BINARY'),
+  ('PyQt5\\Qt5\\bin\\Qt5QmlModels.dll',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\bin\\Qt5QmlModels.dll',
    'BINARY')],
  [],
  [],
@@ -4393,9 +4393,13 @@
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\top_level.txt',
    'DATA'),
-  ('setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\RECORD',
+  ('setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\REQUESTED',
    'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\RECORD',
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\REQUESTED',
+   'DATA'),
+  ('setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\INSTALLER',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\INSTALLER',
    'DATA'),
   ('setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\LICENSE',
    'C:\\Users\\Ali '
@@ -4405,238 +4409,302 @@
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\METADATA',
    'DATA'),
-  ('setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\REQUESTED',
+  ('setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\RECORD',
    'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\REQUESTED',
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\RECORD',
    'DATA'),
   ('setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\WHEEL',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\WHEEL',
-   'DATA'),
-  ('setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\INSTALLER',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\setuptools\\_vendor\\importlib_metadata-8.0.0.dist-info\\INSTALLER',
    'DATA'),
   ('setuptools\\_vendor\\jaraco\\text\\Lorem ipsum.txt',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\setuptools\\_vendor\\jaraco\\text\\Lorem '
    'ipsum.txt',
    'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_gd.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_gd.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_bg.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_bg.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_de.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_de.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_ru.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_ru.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_it.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_it.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_de.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_de.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_tr.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_tr.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_bg.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_bg.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_fa.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_fa.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_hu.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_hu.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_cs.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_cs.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_zh_CN.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_zh_CN.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_sk.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_sk.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_ar.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_ar.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_ko.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_ko.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_sv.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_sv.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_ca.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_ca.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_uk.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_uk.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_zh_TW.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_zh_TW.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_da.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_da.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_es.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_es.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_ru.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_ru.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_sl.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_sl.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_lt.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_lt.qm',
-   'DATA'),
   ('PyQt5\\Qt5\\translations\\qtbase_es.qm',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_es.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_lv.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_lv.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_cs.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_cs.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_en.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_en.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_ar.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_ar.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_zh_CN.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_zh_CN.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_sk.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_sk.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_tr.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_tr.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_ca.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_ca.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_ja.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_ja.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_gd.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_gd.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_lv.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_lv.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_en.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_en.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_de.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_de.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_it.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_it.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_pt.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_pt.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_ru.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_ru.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_tr.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_tr.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_he.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_he.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_he.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_he.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_bg.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_bg.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_ko.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_ko.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_en.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_en.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_it.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_it.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_ca.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_ca.qm',
    'DATA'),
   ('PyQt5\\Qt5\\translations\\qt_gl.qm',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_gl.qm',
    'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_sl.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_sl.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_de.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_de.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_ru.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_ru.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_cs.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_cs.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_ko.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_ko.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_it.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_it.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_lv.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_lv.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_en.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_en.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_en.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_en.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_zh_CN.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_zh_CN.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_fa.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_fa.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_cs.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_cs.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_sk.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_sk.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_pt.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_pt.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_it.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_it.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_ca.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_ca.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_ja.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_ja.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_gd.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_gd.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_bg.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_bg.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_fr.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_fr.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_es.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_es.qm',
+   'DATA'),
   ('PyQt5\\Qt5\\translations\\qt_help_sk.qm',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_sk.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_tr.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_tr.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_uk.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_uk.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_ru.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_ru.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_zh_TW.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_zh_TW.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_sl.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_sl.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_gl.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_gl.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_fi.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_fi.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_gd.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_gd.qm',
    'DATA'),
   ('PyQt5\\Qt5\\translations\\qt_ja.qm',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_ja.qm',
    'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_sl.qm',
+  ('PyQt5\\Qt5\\translations\\qtbase_pl.qm',
    'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_sl.qm',
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_pl.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_he.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_he.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_en.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_en.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_ko.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_ko.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_uk.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_uk.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_de.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_de.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_zh_CN.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_zh_CN.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_da.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_da.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_ko.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_ko.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_ja.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_ja.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_lv.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_lv.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_bg.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_bg.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_ca.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_ca.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_sv.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_sv.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_tr.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_tr.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_de.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_de.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_he.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_he.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_pl.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_pl.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_zh_TW.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_zh_TW.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_cs.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_cs.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_fr.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_fr.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_hu.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_hu.qm',
    'DATA'),
   ('PyQt5\\Qt5\\translations\\qt_help_zh_TW.qm',
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_zh_TW.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_hu.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_hu.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_lt.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_lt.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_sk.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_sk.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_ar.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_ar.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_ar.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_ar.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_fi.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_fi.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_ca.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_ca.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_ar.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_ar.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_tr.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_tr.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_da.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_da.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_uk.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_uk.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_da.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_da.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qtbase_it.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_it.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_fr.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_fr.qm',
+   'DATA'),
+  ('PyQt5\\Qt5\\translations\\qt_help_es.qm',
+   'C:\\Users\\Ali '
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_es.qm',
    'DATA'),
   ('PyQt5\\Qt5\\translations\\qt_help_pl.qm',
    'C:\\Users\\Ali '
@@ -4646,148 +4714,24 @@
    'C:\\Users\\Ali '
    'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_hu.qm',
    'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_fi.qm',
+  ('PyQt5\\Qt5\\translations\\qt_bg.qm',
    'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_fi.qm',
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_bg.qm',
    'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_es.qm',
+  ('PyQt5\\Qt5\\translations\\qt_ru.qm',
    'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_es.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_uk.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_uk.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_ko.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_ko.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_fr.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_fr.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_fr.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_fr.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_fr.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_fr.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_zh_TW.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_zh_TW.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_ar.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_ar.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_da.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_da.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_hu.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_hu.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_fi.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_fi.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_ja.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_ja.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_pl.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_pl.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_pl.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_pl.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_da.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_da.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qt_help_gl.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_help_gl.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_uk.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_uk.qm',
-   'DATA'),
-  ('PyQt5\\Qt5\\translations\\qtbase_cs.qm',
-   'C:\\Users\\Ali '
-   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qtbase_cs.qm',
+   'Akbar\\Desktop\\stock\\env1\\Lib\\site-packages\\PyQt5\\Qt5\\translations\\qt_ru.qm',
    'DATA'),
   ('base_library.zip',
    'C:\\Users\\Ali Akbar\\Desktop\\stock\\build\\main\\base_library.zip',
    'DATA')],
- [('reprlib',
+ [('io',
    'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\reprlib.py',
-   'PYMODULE'),
-  ('linecache',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\linecache.py',
-   'PYMODULE'),
-  ('stat',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\stat.py',
-   'PYMODULE'),
-  ('_collections_abc',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\_collections_abc.py',
-   'PYMODULE'),
-  ('_weakrefset',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\_weakrefset.py',
-   'PYMODULE'),
-  ('keyword',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\keyword.py',
-   'PYMODULE'),
-  ('ntpath',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\ntpath.py',
-   'PYMODULE'),
-  ('sre_constants',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\sre_constants.py',
-   'PYMODULE'),
-  ('codecs',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\codecs.py',
-   'PYMODULE'),
-  ('collections.abc',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\collections\\abc.py',
-   'PYMODULE'),
-  ('collections',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\collections\\__init__.py',
-   'PYMODULE'),
-  ('operator',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\operator.py',
-   'PYMODULE'),
-  ('sre_parse',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\sre_parse.py',
-   'PYMODULE'),
-  ('functools',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\functools.py',
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\io.py',
    'PYMODULE'),
   ('posixpath',
    'C:\\Users\\Ali '
    'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\posixpath.py',
-   'PYMODULE'),
-  ('enum',
-   'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\enum.py',
    'PYMODULE'),
   ('encodings.zlib_codec',
    'C:\\Users\\Ali '
@@ -5277,17 +5221,45 @@
    'C:\\Users\\Ali '
    'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\encodings\\__init__.py',
    'PYMODULE'),
-  ('traceback',
+  ('functools',
    'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\traceback.py',
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\functools.py',
    'PYMODULE'),
-  ('copyreg',
+  ('collections.abc',
    'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\copyreg.py',
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\collections\\abc.py',
+   'PYMODULE'),
+  ('collections',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\collections\\__init__.py',
+   'PYMODULE'),
+  ('locale',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\locale.py',
+   'PYMODULE'),
+  ('sre_parse',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\sre_parse.py',
+   'PYMODULE'),
+  ('reprlib',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\reprlib.py',
+   'PYMODULE'),
+  ('warnings',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\warnings.py',
+   'PYMODULE'),
+  ('operator',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\operator.py',
    'PYMODULE'),
   ('types',
    'C:\\Users\\Ali '
    'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\types.py',
+   'PYMODULE'),
+  ('stat',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\stat.py',
    'PYMODULE'),
   ('weakref',
    'C:\\Users\\Ali '
@@ -5297,29 +5269,37 @@
    'C:\\Users\\Ali '
    'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\abc.py',
    'PYMODULE'),
-  ('sre_compile',
+  ('codecs',
    'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\sre_compile.py',
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\codecs.py',
    'PYMODULE'),
-  ('io',
+  ('sre_constants',
    'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\io.py',
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\sre_constants.py',
    'PYMODULE'),
-  ('heapq',
+  ('keyword',
    'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\heapq.py',
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\keyword.py',
    'PYMODULE'),
-  ('locale',
+  ('_weakrefset',
    'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\locale.py',
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\_weakrefset.py',
+   'PYMODULE'),
+  ('ntpath',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\ntpath.py',
+   'PYMODULE'),
+  ('traceback',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\traceback.py',
    'PYMODULE'),
   ('genericpath',
    'C:\\Users\\Ali '
    'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\genericpath.py',
    'PYMODULE'),
-  ('warnings',
+  ('_collections_abc',
    'C:\\Users\\Ali '
-   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\warnings.py',
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\_collections_abc.py',
    'PYMODULE'),
   ('re._parser',
    'C:\\Users\\Ali '
@@ -5340,6 +5320,26 @@
   ('re',
    'C:\\Users\\Ali '
    'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\re\\__init__.py',
+   'PYMODULE'),
+  ('heapq',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\heapq.py',
+   'PYMODULE'),
+  ('copyreg',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\copyreg.py',
+   'PYMODULE'),
+  ('sre_compile',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\sre_compile.py',
+   'PYMODULE'),
+  ('linecache',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\linecache.py',
+   'PYMODULE'),
+  ('enum',
+   'C:\\Users\\Ali '
+   'Akbar\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\enum.py',
    'PYMODULE'),
   ('os',
    'C:\\Users\\Ali '

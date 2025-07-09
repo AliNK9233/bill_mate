@@ -248,3 +248,38 @@ def update_customer_details(old_phone, name, new_phone, address):
     ''', (name, new_phone, address, old_phone))
     conn.commit()
     conn.close()
+
+
+def update_invoice_entry(invoice_no, paid_amount, balance, status, remarks=""):
+    """
+    Update paid amount, balance, status, and remarks for a specific invoice.
+    """
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+
+    # Check if remarks column exists
+    c.execute("PRAGMA table_info(invoices)")
+    columns = [col[1] for col in c.fetchall()]
+    if "remarks" not in columns:
+        c.execute("ALTER TABLE invoices ADD COLUMN remarks TEXT DEFAULT ''")
+
+    # Update
+    c.execute('''
+        UPDATE invoices
+        SET paid_amount=?, balance=?, status=?, remarks=?
+        WHERE invoice_no=?
+    ''', (paid_amount, balance, status, remarks, invoice_no))
+
+    conn.commit()
+    conn.close()
+
+
+def add_remarks_column_if_not_exists():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("PRAGMA table_info(invoices)")
+    columns = [col[1] for col in c.fetchall()]
+    if "remarks" not in columns:
+        c.execute("ALTER TABLE invoices ADD COLUMN remarks TEXT DEFAULT ''")
+    conn.commit()
+    conn.close()
