@@ -91,10 +91,13 @@ class SalesWindow(QWidget):
                 self.sales_table.setItem(row_pos, col, item)
 
             # Remarks column
+            # Remarks from DB
+            remarks_value = row_data[8] if len(row_data) > 8 else ""
+            remarks_item = QTableWidgetItem(remarks_value)
             if row_data[7] == "Paid":
-                lock_icon = QTableWidgetItem("🔒")
-                lock_icon.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-                self.sales_table.setItem(row_pos, 8, lock_icon)
+                remarks_item.setFlags(
+                    remarks_item.flags() & ~Qt.ItemIsEditable)
+            self.sales_table.setItem(row_pos, 8, remarks_item)
         self.sales_table.blockSignals(False)
 
     def track_changes(self, item):
@@ -138,8 +141,12 @@ class SalesWindow(QWidget):
 
     def save_changes(self):
         try:
+            if not self.edited_rows:
+                QMessageBox.information(
+                    self, "No Changes", "ℹ️ No edits to save.")
+                return
+
             for invoice_no, changes in self.edited_rows.items():
-                # Pass individual fields to update_invoice_entry
                 update_invoice_entry(
                     invoice_no,
                     changes["paid_amount"],

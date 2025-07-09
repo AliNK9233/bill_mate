@@ -159,7 +159,7 @@ def get_all_invoices():
     c = conn.cursor()
     c.execute('''
         SELECT i.invoice_no, c.name, i.date, i.total_amount,
-               i.paid_amount, i.balance, i.payment_method, i.status
+               i.paid_amount, i.balance, i.payment_method, i.status, i.remarks
         FROM invoices i
         LEFT JOIN customers c ON i.customer_id = c.id
         ORDER BY i.date DESC
@@ -177,7 +177,7 @@ def get_invoices_by_month(month):
     c = conn.cursor()
     c.execute('''
         SELECT i.invoice_no, c.name, i.date, i.total_amount,
-               i.paid_amount, i.balance, i.payment_method, i.status
+               i.paid_amount, i.balance, i.payment_method, i.status, i.remarks
         FROM invoices i
         LEFT JOIN customers c ON i.customer_id = c.id
         WHERE strftime('%m', i.date) = ?
@@ -196,7 +196,7 @@ def get_invoices_by_date_range(start_date, end_date):
     c = conn.cursor()
     c.execute('''
         SELECT i.invoice_no, c.name, i.date, i.total_amount,
-               i.paid_amount, i.balance, i.payment_method, i.status
+               i.paid_amount, i.balance, i.payment_method, i.status, i.remarks
         FROM invoices i
         LEFT JOIN customers c ON i.customer_id = c.id
         WHERE date(i.date) BETWEEN ? AND ?
@@ -251,25 +251,20 @@ def update_customer_details(old_phone, name, new_phone, address):
 
 
 def update_invoice_entry(invoice_no, paid_amount, balance, status, remarks=""):
-    """
-    Update paid amount, balance, status, and remarks for a specific invoice.
-    """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
 
-    # Check if remarks column exists
+    # Add remarks column if missing
     c.execute("PRAGMA table_info(invoices)")
     columns = [col[1] for col in c.fetchall()]
     if "remarks" not in columns:
         c.execute("ALTER TABLE invoices ADD COLUMN remarks TEXT DEFAULT ''")
 
-    # Update
     c.execute('''
         UPDATE invoices
         SET paid_amount=?, balance=?, status=?, remarks=?
         WHERE invoice_no=?
     ''', (paid_amount, balance, status, remarks, invoice_no))
-
     conn.commit()
     conn.close()
 
