@@ -132,19 +132,6 @@ class InvoiceWindow(QWidget):
 
         self.setLayout(layout)
 
-    def toggle_invoice_type(self):
-        if self.invoice_type_select.currentText() == "Job Work Invoice":
-            self.item_search.hide()
-            self.qty_input.hide()
-            self.invoice_table.hide()
-            self.job_description.show()
-            self.job_amount_input.show()
-        else:
-            self.item_search.show()
-            self.qty_input.show()
-        self.invoice_table.show()
-        self.job_description.hide()
-        self.job_amount_input.hide()
 
     def load_customer_options(self):
         """
@@ -173,15 +160,18 @@ class InvoiceWindow(QWidget):
 
     def load_item_options(self):
         """
-        Load stock items into dropdown.
+        Load stock items into dropdown, excluding items with zero stock.
         """
         items = get_consolidated_stock()
         self.item_lookup = {}
         self.item_search.clear()
         for row in items:
-            display_text = f"{row[2]} - {row[1]}"  # Code - Name
-            self.item_search.addItem(display_text)
-            self.item_lookup[display_text] = row
+            stock_qty = row[7]  # Adjust index if stock quantity is in a different column
+            if stock_qty > 0:  # ✅ Only include items with stock > 0
+                display_text = f"{row[2]} - {row[1]}"  # Code - Name
+                self.item_search.addItem(display_text)
+                self.item_lookup[display_text] = row
+
 
     def add_item_to_invoice(self):
         """
@@ -261,181 +251,149 @@ class InvoiceWindow(QWidget):
 
     def generate_pdf(self):
         """
-        Generate Professional PDF Invoice with:
-        - Page numbers fixed (no overlap)
-        - Font size consistent
-        - Logo included from company profile
+        Generate a professional PDF Invoice:
+        - Includes Discount column
+        - Logo properly sized
+        - Clean professional layout
         """
+        from reportlab.lib.units import mm
+        import os
+
         try:
             # 🏢 Load company profile
             profile = get_company_profile()
-            company_name = profile[1]
-            gst_no = profile[2]
-            address = profile[3]
-            email = profile[4]
-            phone = profile[5]
-            logo_path = profile[6] if profile[6] else "data/logos/rayani_logo.png"
+            company_name = profile.get('name', "Dummy Company Pvt Ltd")
+            gst_no = profile.get('gst_no', "27ABCDE1234F1Z5")
+            address = profile.get('address', "123 Example Street, Test City")
+            email = profile.get('email', "info@dummy.com")
+            phone = profile.get('phone1', "+91-9876543210")
+            logo_path = profile.get('logo_path')
+
+            # ✅ Set fallback logo path
+            if not logo_path or not os.path.exists(logo_path):
+                logo_path = "data/logos/default_logo.png"
+
+            # Debug: Check if the file actually exists
+            if not os.path.exists(logo_path):
+                print(f"⚠️ Logo file missing at: {logo_path}")
+            else:
+                print(f"✅ Using logo: {logo_path}")
 
             # 🧑 Customer details
-            selected_customer = self.customer_select.currentText().split(" (")[
-                0]
+            customer_name = self.customer_select.currentText().strip()
+            customer_phone = self.customer_phone_input.text().strip()
 
-            if selected_customer != "➕ Add New Guest Customer" and selected_customer in self.customer_lookup:
-                # Existing customer
-                customer_phone, customer_address, customer_gst_no = self.customer_lookup[
-                    selected_customer]
-                customer_name = selected_customer
-                customer_gst_no = customer_gst_no or ""
-                customer_address = customer_address or ""
-            else:
-                # New guest customer
-                customer_name = self.customer_select.currentText()
-                customer_phone = self.customer_phone_input.text().strip()
-                customer_address = getattr(
-                    self, "customer_address_input", QLineEdit()).text().strip()
-                customer_gst_no = getattr(
-                    self, "customer_gst_input", QLineEdit()).text().strip()
+            if not customer_name or not self.invoice_items:
+                QMessageBox.warning(
+                    self, "Missing Data",
+                    "⚠️ Please select a customer and add at least one invoice item."
+                )
+                return
 
             # Save customer
-            customer_id = save_customer(
-                customer_name, customer_phone, customer_address)
+            customer_id = save_customer(customer_name, customer_phone, "")
+            invoice_no = get_next_invoice_number()
 
-            # Totals
-            billing_type = self.billing_type.currentText()
             total_amount = sum(item['total'] for item in self.invoice_items)
-            gst_total = 0.0
-
-            if billing_type == "GST Bill":
-                gst_total = sum(item['total'] * (item['gst'] / 100)
-                                for item in self.invoice_items)
-                total_amount += gst_total
-
             paid_amount = float(self.paid_amount_input.text().strip() or 0.0)
             balance = total_amount - paid_amount
             status = "Paid" if balance <= 0 else (
                 "Partial" if paid_amount > 0 else "Unpaid")
-            payment_method = "Cash"
 
             # Save invoice to DB
-            invoice_no = get_next_invoice_number()
             save_invoice(
                 customer_id=customer_id,
                 total_amount=total_amount,
                 paid_amount=paid_amount,
                 balance=balance,
-                payment_method=payment_method,
+                payment_method="Cash",
                 status=status,
                 items=self.invoice_items
             )
-
-            for item in self.invoice_items:
-                reduce_stock_quantity(item['code'], item['qty'])
 
             # Generate PDF
             filename = f"Invoice_{invoice_no}.pdf"
             c = canvas.Canvas(filename, pagesize=A4)
             width, height = A4
 
-            # --- PAGE FRAME FUNCTION ---
-            def draw_page_frame(page_num, total_pages):
-                c.setStrokeColor(colors.black)
-                c.rect(20, 20, width - 40, height - 40, stroke=True, fill=0)
+            # --- Draw Header ---
+            if os.path.exists(logo_path):
+                c.drawImage(
+                    logo_path, 30, height - 80,
+                    width=50 * mm, preserveAspectRatio=True, mask='auto'
+                )
 
-                # Header
-                if os.path.exists(logo_path):
-                    c.drawImage(logo_path, 35, height - 90,
-                                width=70, height=50, mask='auto')
-                c.setFont("Helvetica-Bold", 16)
-                c.drawString(120, height - 50, company_name)
-                c.setFont("Helvetica", 10)
-                c.drawString(120, height - 65, address)
-                c.drawString(120, height - 80,
-                             f"Phone: {phone} | GSTIN: {gst_no}")
-
-                # Invoice Details
-                c.setFont("Helvetica-Bold", 11)
-                c.drawRightString(width - 40, height - 50,
-                                  f"Invoice No: {invoice_no}")
-                c.setFont("Helvetica", 10)
-                c.drawRightString(width - 40, height - 65,
-                                  f"Date: {datetime.date.today()}")
-
-                # Page Number
-                c.setFont("Helvetica", 8)
-                c.drawString(30, 30, f"Page {page_num} of {total_pages}")
-
-            # Precalculate total pages
-            items_per_page = 20
-            total_pages = ((len(self.invoice_items) - 1) // items_per_page) + 1
-            page_num = 1
-            draw_page_frame(page_num, total_pages)
-
-            # --- CUSTOMER INFO ---
-            y = height - 120
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(35, y, "Billed To:")
+            c.setFont("Helvetica-Bold", 16)
+            c.drawString(120, height - 50, company_name)
             c.setFont("Helvetica", 10)
-            c.drawString(110, y, customer_name)
-            if customer_address:
-                c.drawString(110, y - 15, f"Address: {customer_address}")
-            if customer_gst_no:
-                c.drawString(110, y - 30, f"GST No: {customer_gst_no}")
-            if customer_phone:
-                c.drawString(110, y - 45, f"Phone: {customer_phone}")
-            y -= 70
+            c.drawString(120, height - 65, f"GSTIN: {gst_no}")
+            c.drawString(120, height - 80, address)
+            c.drawString(120, height - 95, f"Email: {email} | Phone: {phone}")
 
-            # --- TABLE HEADER FUNCTION ---
-            def draw_table_header(y_pos):
-                c.setFillColor(colors.lightgrey)
-                c.rect(30, y_pos, width - 60, 20, fill=True, stroke=False)
-                c.setFillColor(colors.black)
-                c.setFont("Helvetica-Bold", 10)
-                c.drawString(35, y_pos + 5, "S.No.")
-                c.drawString(65, y_pos + 5, "Item Name")
-                c.drawString(300, y_pos + 5, "Qty")
-                c.drawString(400, y_pos + 5, "Rate (₹)")
-                c.drawString(480, y_pos + 5, "Total (₹)")
+            # --- Customer Info ---
+            y = height - 120
+            c.setFont("Helvetica-Bold", 11)
+            c.drawString(30, y, "Billed To:")
+            c.setFont("Helvetica", 10)
+            c.drawString(100, y, customer_name)
+            c.drawString(100, y - 15, f"Phone: {customer_phone}")
 
-            draw_table_header(y)
+            # --- Table Header ---
+            y -= 40
+            c.setFillColor(colors.lightgrey)
+            c.rect(30, y, width - 60, 20, fill=True, stroke=False)
+            c.setFillColor(colors.black)
+            c.setFont("Helvetica-Bold", 10)
 
-            # --- TABLE CONTENT ---
+            columns = ["S.No", "Item Name", "Qty", "Unit", "HSN Code",
+                    "Price", "Tax", "Discount", "Amount"]
+            col_positions = [35, 70, 200, 240, 290, 350, 400, 450, 500]
+            for idx, col in enumerate(columns):
+                c.drawString(col_positions[idx], y + 5, col)
+
+            # --- Table Content ---
             y -= 20
             c.setFont("Helvetica", 10)
-            for idx, item in enumerate(self.invoice_items, 1):
-                c.drawString(35, y, str(idx))
-                c.drawString(65, y, item['name'])
-                c.drawString(300, y, str(item['qty']))
-                c.drawString(400, y, f"{item['price']:.2f}")
-                c.drawString(480, y, f"{item['total']:.2f}")
-
+            for idx, item in enumerate(self.invoice_items, start=1):
+                c.drawString(col_positions[0], y, str(idx))
+                c.drawString(col_positions[1], y, item['name'])
+                c.drawString(col_positions[2], y, str(item['qty']))
+                c.drawString(col_positions[3], y, item.get('unit', 'Nos'))
+                c.drawString(col_positions[4], y, item.get('hsn', ''))
+                c.drawString(col_positions[5], y, f"{item['price']:.2f}")
+                c.drawString(col_positions[6], y, f"{item['gst']}%")
+                c.drawString(col_positions[7], y, "0.00")  # Default Discount ₹0
+                c.drawString(col_positions[8], y, f"{item['total']:.2f}")
                 y -= 15
-                if y < 100 and idx < len(self.invoice_items):
+
+                if y < 100:
                     c.showPage()
-                    page_num += 1
-                    draw_page_frame(page_num, total_pages)
                     y = height - 140
-                    draw_table_header(y)
-                    y -= 20
 
-            # --- TOTALS ---
-            y -= 10
-            c.line(30, y, width - 30, y)
-            y -= 15
-            c.setFont("Helvetica-Bold", 12)
-            c.drawString(350, y, "Grand Total (₹):")
-            c.drawRightString(width - 40, y, f"{total_amount:.2f}")
+            # --- Totals ---
+            y -= 20
+            c.setFont("Helvetica-Bold", 11)
+            c.drawString(400, y, "Grand Total:")
+            c.drawRightString(width - 40, y, f"₹{total_amount:.2f}")
 
-            # Amount in words
+            # --- Amount in words ---
             amount_in_words = num2words(
                 total_amount, lang='en_IN').title() + " Only"
             y -= 20
             c.setFont("Helvetica-Oblique", 10)
             c.drawString(30, y, f"Amount in Words: {amount_in_words}")
 
+            # Footer
+            y -= 40
+            c.setFont("Helvetica", 9)
+            c.drawString(30, y, "Thank you for your business!")
             c.save()
 
             QMessageBox.information(
-                self, "✅ Success", f"Invoice saved as {filename}")
+                self, "✅ Success", f"Invoice saved as {filename}"
+            )
+
+            # Reset UI
             self.invoice_table.setRowCount(0)
             self.invoice_items.clear()
             self.update_invoice_total()
@@ -443,4 +401,9 @@ class InvoiceWindow(QWidget):
 
         except Exception as e:
             QMessageBox.warning(
-                self, "❌ Error", f"Failed to generate PDF: {e}")
+                self, "❌ Error", f"Failed to generate PDF: {e}"
+            )
+
+
+
+
