@@ -22,6 +22,11 @@ else:
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
+    # Load SAP Theme
+    with open("data/themes/theme.qss", "r") as f:
+        app.setStyleSheet(f.read())
+
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())

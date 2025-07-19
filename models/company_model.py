@@ -1,77 +1,99 @@
 import sqlite3
-import os
 
 DB_FILE = "data/database.db"
 
 
 def initialize_company_profile_table():
     """
-    Create the company_profile table if it does not exist.
-    Add missing columns if table already exists.
+    Create company_profile table if it doesn't exist
+    and add default placeholder row.
     """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-
-    # Create table if not exists
-    c.execute('''
+    c.execute("""
         CREATE TABLE IF NOT EXISTS company_profile (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            gst_no TEXT,
-            address TEXT,
-            email TEXT,
-            phone TEXT,
-            logo_path TEXT
+            name TEXT DEFAULT 'Rayani Engineering',
+            gst_no TEXT DEFAULT 'Enter GST Number',
+            address TEXT DEFAULT 'Enter Address',
+            phone1 TEXT DEFAULT 'Enter Phone 1',
+            phone2 TEXT DEFAULT 'Enter Phone 2',
+            email TEXT DEFAULT 'Enter Email',
+            website TEXT DEFAULT 'Enter Website',
+            bank_name TEXT DEFAULT 'Enter Bank Name',
+            bank_account TEXT DEFAULT 'Enter Account No',
+            ifsc_code TEXT DEFAULT 'Enter IFSC Code',
+            branch_address TEXT DEFAULT 'Enter Branch Address',
+            logo_path TEXT DEFAULT ''
         )
-    ''')
-
-    # Check existing columns
-    c.execute("PRAGMA table_info(company_profile)")
-    existing_columns = [col[1] for col in c.fetchall()]
-
-    # Add missing columns dynamically
-    if "phone" not in existing_columns:
-        c.execute("ALTER TABLE company_profile ADD COLUMN phone TEXT DEFAULT ''")
-    if "logo_path" not in existing_columns:
-        c.execute(
-            "ALTER TABLE company_profile ADD COLUMN logo_path TEXT DEFAULT ''")
-
+    """)
     # Insert default row if table is empty
-    c.execute('SELECT COUNT(*) FROM company_profile')
+    c.execute("SELECT COUNT(*) FROM company_profile")
     if c.fetchone()[0] == 0:
-        c.execute('''
-            INSERT INTO company_profile (name, gst_no, address, email, phone, logo_path)
-            VALUES ("", "", "", "", "", "")
-        ''')
-
+        c.execute("""
+            INSERT INTO company_profile
+            (name, gst_no, address, phone1, phone2, email, website,
+             bank_name, bank_account, ifsc_code, branch_address, logo_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            "Rayani Engineering", "Enter GST Number", "Enter Address",
+            "Enter Phone 1", "Enter Phone 2", "Enter Email",
+            "Enter Website", "Enter Bank Name", "Enter Account No",
+            "Enter IFSC Code", "Enter Branch Address", ""
+        ))
     conn.commit()
     conn.close()
 
 
 def get_company_profile():
     """
-    Retrieve company profile data as a tuple:
-    (name, gst_no, address, email, phone, logo_path)
+    Fetch the company profile (only 1 row expected).
     """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute(
-        'SELECT name, gst_no, address, email, phone, logo_path FROM company_profile LIMIT 1')
+    c.execute("SELECT * FROM company_profile LIMIT 1")
     row = c.fetchone()
     conn.close()
-    return row
+
+    if row:
+        return {
+            "id": row[0],
+            "name": row[1],
+            "gst_no": row[2],
+            "address": row[3],
+            "phone1": row[4],
+            "phone2": row[5],
+            "email": row[6],
+            "website": row[7],
+            "bank_name": row[8],
+            "bank_account": row[9],
+            "ifsc_code": row[10],
+            "branch_address": row[11],
+            "logo_path": row[12]
+        }
+    else:
+        # Should never happen because we insert default row
+        return {}
 
 
-def save_company_profile(name, gst_no, address, email, phone, logo_path):
+def save_company_profile(profile_data):
     """
-    Update the company profile details in the database.
+    Save updates to the company profile (update single row).
     """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute('''
+    c.execute("""
         UPDATE company_profile
-        SET name=?, gst_no=?, address=?, email=?, phone=?, logo_path=?
-        WHERE id=1
-    ''', (name, gst_no, address, email, phone, logo_path))
+        SET gst_no = ?, address = ?, phone1 = ?, phone2 = ?,
+            email = ?, website = ?, bank_name = ?, bank_account = ?,
+            ifsc_code = ?, branch_address = ?, logo_path = ?
+        WHERE id = ?
+    """, (
+        profile_data["gst_no"], profile_data["address"], profile_data["phone1"],
+        profile_data["phone2"], profile_data["email"], profile_data["website"],
+        profile_data["bank_name"], profile_data["bank_account"],
+        profile_data["ifsc_code"], profile_data["branch_address"],
+        profile_data["logo_path"], profile_data["id"]
+    ))
     conn.commit()
     conn.close()

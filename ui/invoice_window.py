@@ -1,3 +1,4 @@
+import os
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit, QTableWidget, QTableWidgetItem,
     QHBoxLayout, QDialog, QFormLayout, QDialogButtonBox, QMessageBox, QComboBox, QCompleter, QTextEdit
@@ -263,38 +264,37 @@ class InvoiceWindow(QWidget):
         Generate Professional PDF Invoice with:
         - Page numbers fixed (no overlap)
         - Font size consistent
-        - Item S.No. column added
+        - Logo included from company profile
         """
-
         try:
+            # 🏢 Load company profile
             profile = get_company_profile()
             company_name = profile[1]
             gst_no = profile[2]
             address = profile[3]
             email = profile[4]
             phone = profile[5]
-            logo_path = profile[6]
-            # ✅ Customer details
+            logo_path = profile[6] if profile[6] else "data/logos/rayani_logo.png"
+
+            # 🧑 Customer details
             selected_customer = self.customer_select.currentText().split(" (")[
                 0]
 
             if selected_customer != "➕ Add New Guest Customer" and selected_customer in self.customer_lookup:
-                # ✅ Existing customer in DB
+                # Existing customer
                 customer_phone, customer_address, customer_gst_no = self.customer_lookup[
                     selected_customer]
                 customer_name = selected_customer
-
-                # If no GST in DB, leave blank
-                customer_gst_no = customer_gst_no if customer_gst_no else ""
-                customer_address = customer_address if customer_address else ""
+                customer_gst_no = customer_gst_no or ""
+                customer_address = customer_address or ""
             else:
-                # 🆕 New Guest customer
+                # New guest customer
                 customer_name = self.customer_select.currentText()
                 customer_phone = self.customer_phone_input.text().strip()
-                customer_address = self.customer_address_input.text().strip() if hasattr(self,
-                                                                                         "customer_address_input") else ""
-                customer_gst_no = self.customer_gst_input.text().strip() if hasattr(self,
-                                                                                    "customer_gst_input") else ""
+                customer_address = getattr(
+                    self, "customer_address_input", QLineEdit()).text().strip()
+                customer_gst_no = getattr(
+                    self, "customer_gst_input", QLineEdit()).text().strip()
 
             # Save customer
             customer_id = save_customer(
@@ -338,21 +338,19 @@ class InvoiceWindow(QWidget):
 
             # --- PAGE FRAME FUNCTION ---
             def draw_page_frame(page_num, total_pages):
-                # Border
                 c.setStrokeColor(colors.black)
                 c.rect(20, 20, width - 40, height - 40, stroke=True, fill=0)
 
                 # Header
-                logo_path = "data/logos/rayani_logo.png"
-                c.drawImage(logo_path, 35, height - 90,
-                            width=70, height=50, mask='auto')
-
+                if os.path.exists(logo_path):
+                    c.drawImage(logo_path, 35, height - 90,
+                                width=70, height=50, mask='auto')
                 c.setFont("Helvetica-Bold", 16)
-                c.drawString(120, height - 50, "RAYANI ENGINEERING")
+                c.drawString(120, height - 50, company_name)
                 c.setFont("Helvetica", 10)
-                c.drawString(120, height - 65, "123 Example Street, Your City")
+                c.drawString(120, height - 65, address)
                 c.drawString(120, height - 80,
-                             "Phone: +91-9876543210 | GSTIN: 27ABCDE1234F1Z5")
+                             f"Phone: {phone} | GSTIN: {gst_no}")
 
                 # Invoice Details
                 c.setFont("Helvetica-Bold", 11)
@@ -362,7 +360,7 @@ class InvoiceWindow(QWidget):
                 c.drawRightString(width - 40, height - 65,
                                   f"Date: {datetime.date.today()}")
 
-                # Page number bottom-left (fixed position)
+                # Page Number
                 c.setFont("Helvetica", 8)
                 c.drawString(30, 30, f"Page {page_num} of {total_pages}")
 
@@ -370,7 +368,6 @@ class InvoiceWindow(QWidget):
             items_per_page = 20
             total_pages = ((len(self.invoice_items) - 1) // items_per_page) + 1
             page_num = 1
-
             draw_page_frame(page_num, total_pages)
 
             # --- CUSTOMER INFO ---
@@ -393,23 +390,11 @@ class InvoiceWindow(QWidget):
                 c.rect(30, y_pos, width - 60, 20, fill=True, stroke=False)
                 c.setFillColor(colors.black)
                 c.setFont("Helvetica-Bold", 10)
-
-                if billing_type == "GST Bill":
-                    c.drawString(35, y_pos + 5, "S.No.")
-                    c.drawString(65, y_pos + 5, "Item Name")
-                    c.drawString(200, y_pos + 5, "Unit")
-                    c.drawString(250, y_pos + 5, "HSN Code")
-                    c.drawString(320, y_pos + 5, "Qty")
-                    c.drawString(370, y_pos + 5, "Rate (₹)")
-                    c.drawString(440, y_pos + 5, "GST (₹ + %)")
-                    c.drawString(530, y_pos + 5, "Total (₹)")
-                else:
-                    c.drawString(35, y_pos + 5, "S.No.")
-                    c.drawString(65, y_pos + 5, "Item Name")
-                    c.drawString(300, y_pos + 5, "Unit")
-                    c.drawString(350, y_pos + 5, "Qty")
-                    c.drawString(400, y_pos + 5, "Rate (₹)")
-                    c.drawString(480, y_pos + 5, "Total (₹)")
+                c.drawString(35, y_pos + 5, "S.No.")
+                c.drawString(65, y_pos + 5, "Item Name")
+                c.drawString(300, y_pos + 5, "Qty")
+                c.drawString(400, y_pos + 5, "Rate (₹)")
+                c.drawString(480, y_pos + 5, "Total (₹)")
 
             draw_table_header(y)
 
@@ -417,22 +402,11 @@ class InvoiceWindow(QWidget):
             y -= 20
             c.setFont("Helvetica", 10)
             for idx, item in enumerate(self.invoice_items, 1):
-                c.drawString(35, y, str(idx))  # S.No.
+                c.drawString(35, y, str(idx))
                 c.drawString(65, y, item['name'])
-                if billing_type == "GST Bill":
-                    c.drawString(200, y, item.get('unit', 'Pcs'))
-                    c.drawString(250, y, item['hsn'])
-                    c.drawString(320, y, str(item['qty']))
-                    c.drawString(370, y, f"{item['price']:.2f}")
-                    gst_value = item['total'] * (item['gst'] / 100)
-                    gst_text = f"₹{gst_value:.2f} ({item['gst']}%)"
-                    c.drawString(440, y, gst_text)
-                    c.drawString(530, y, f"{item['total']:.2f}")
-                else:
-                    c.drawString(300, y, item.get('unit', 'Pcs'))
-                    c.drawString(350, y, str(item['qty']))
-                    c.drawString(400, y, f"{item['price']:.2f}")
-                    c.drawString(480, y, f"{item['total']:.2f}")
+                c.drawString(300, y, str(item['qty']))
+                c.drawString(400, y, f"{item['price']:.2f}")
+                c.drawString(480, y, f"{item['total']:.2f}")
 
                 y -= 15
                 if y < 100 and idx < len(self.invoice_items):
@@ -447,52 +421,21 @@ class InvoiceWindow(QWidget):
             y -= 10
             c.line(30, y, width - 30, y)
             y -= 15
-
-            if billing_type == "GST Bill":
-                c.drawString(400, y, "GST Total:")
-                c.drawRightString(width - 40, y, f"{gst_total:.2f}")
-                y -= 15
-
             c.setFont("Helvetica-Bold", 12)
             c.drawString(350, y, "Grand Total (₹):")
             c.drawRightString(width - 40, y, f"{total_amount:.2f}")
-            y -= 20
 
-            # ✅ Amount in words
+            # Amount in words
             amount_in_words = num2words(
                 total_amount, lang='en_IN').title() + " Only"
+            y -= 20
             c.setFont("Helvetica-Oblique", 10)
             c.drawString(30, y, f"Amount in Words: {amount_in_words}")
-
-            # --- TERMS & SIGNATURE ---
-            y -= 40
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(30, y, "Terms & Conditions:")
-            c.setFont("Helvetica", 9)
-            y -= 15
-            c.drawString(
-                40, y, "1. Goods once Sold cannot be taken back or exchanged.")
-            y -= 12
-            c.drawString(
-                40, y, "2. Interest @ 24% p.a. will be charged for uncleared bills beyond 7 days.")
-            y -= 12
-            c.drawString(40, y, "3. Subject to local jurisdiction.")
-
-            c.setFont("Helvetica", 10)
-            c.drawString(width - 180, 60, "For RAYANI ENGINEERING")
-            c.line(width - 180, 50, width - 40, 50)
-            c.drawString(width - 130, 35, "Authorized Signatory")
-
-            # --- FOOTER ---
-            # c.setFont("Helvetica-Oblique", 8)
-            # c.drawString(30, 30, "Thank you for your business!")
 
             c.save()
 
             QMessageBox.information(
-                self, "Success", f"✅ Professional PDF Invoice saved as {filename}")
-
-            # Reset for new invoice
+                self, "✅ Success", f"Invoice saved as {filename}")
             self.invoice_table.setRowCount(0)
             self.invoice_items.clear()
             self.update_invoice_total()
@@ -500,129 +443,4 @@ class InvoiceWindow(QWidget):
 
         except Exception as e:
             QMessageBox.warning(
-                self, "Error", f"❌ Failed to generate PDF: {e}")
-
-    def generate_job_work_pdf(self):
-        """
-        Generate Job Work PDF Invoice with simple structure (no stock items).
-        """
-        try:
-            profile = get_company_profile()
-            company_name = profile[1]
-            gst_no = profile[2]
-            address = profile[3]
-            email = profile[4]
-            phone = profile[5]
-            logo_path = profile[6]
-
-            # ✅ Customer details
-            customer_name = self.customer_select.currentText().strip()
-            customer_phone = self.customer_phone_input.text().strip()
-            customer_address = self.customer_address_input.text().strip()
-            customer_gst_no = self.customer_gst_input.text().strip()
-
-            # Save customer
-            customer_id = save_customer(
-                customer_name, customer_phone, customer_address, customer_gst_no
-            )
-
-            # Job Work Data
-            job_description = self.job_description.toPlainText().strip()
-            job_amount = float(self.job_amount_input.text().strip() or 0.0)
-
-            paid_amount = float(self.paid_amount_input.text().strip() or 0.0)
-            balance = job_amount - paid_amount
-            status = "Paid" if balance <= 0 else (
-                "Partial" if paid_amount > 0 else "Unpaid")
-            payment_method = "Cash"
-
-            # Save invoice to DB
-            invoice_no = get_next_invoice_number()
-            save_invoice(
-                customer_id=customer_id,
-                total_amount=job_amount,
-                paid_amount=paid_amount,
-                balance=balance,
-                payment_method=payment_method,
-                status=status,
-                items=[]  # No items
-            )
-
-            # Generate PDF
-            filename = f"JobWork_Invoice_{invoice_no}.pdf"
-            c = canvas.Canvas(filename, pagesize=A4)
-            width, height = A4
-
-            # --- Header ---
-            c.setFont("Helvetica-Bold", 16)
-            c.drawString(50, height - 50, company_name)
-            c.setFont("Helvetica", 10)
-            c.drawString(50, height - 65, f"GST No: {gst_no}")
-            c.drawString(50, height - 80, f"Address: {address}")
-            c.drawString(50, height - 95, f"Email: {email} | Phone: {phone}")
-
-            c.setFont("Helvetica-Bold", 12)
-            c.drawRightString(width - 50, height - 50,
-                              f"Invoice No: {invoice_no}")
-            c.drawRightString(width - 50, height - 65,
-                              f"Date: {datetime.date.today()}")
-
-            # --- Customer Info ---
-            y = height - 130
-            c.setFont("Helvetica-Bold", 12)
-            c.drawString(50, y, "Billed To:")
-            c.setFont("Helvetica", 10)
-            c.drawString(130, y, customer_name)
-            y -= 15
-            if customer_address:
-                c.drawString(130, y, f"Address: {customer_address}")
-                y -= 15
-            if customer_gst_no:
-                c.drawString(130, y, f"GST No: {customer_gst_no}")
-                y -= 15
-            c.drawString(130, y, f"Phone: {customer_phone}")
-
-            y -= 30
-
-            # --- Job Description ---
-            c.setFont("Helvetica-Bold", 12)
-            c.drawString(50, y, "Job Work Description:")
-            y -= 15
-            c.setFont("Helvetica", 10)
-            c.drawString(60, y, job_description)
-
-            y -= 50
-
-            # --- Totals ---
-            c.setFont("Helvetica-Bold", 12)
-            c.drawString(50, y, f"Total Amount (₹):")
-            c.drawRightString(width - 50, y, f"{job_amount:.2f}")
-
-            y -= 20
-            if paid_amount > 0:
-                c.setFont("Helvetica", 10)
-                c.drawString(50, y, f"Paid Amount (₹):")
-                c.drawRightString(width - 50, y, f"{paid_amount:.2f}")
-                y -= 15
-
-            c.setFont("Helvetica-Bold", 12)
-            c.drawString(50, y, f"Balance (₹):")
-            c.drawRightString(width - 50, y, f"{balance:.2f}")
-
-            # --- Footer ---
-            y -= 50
-            c.setFont("Helvetica-Oblique", 10)
-            c.drawString(50, y, "Thank you for your business!")
-            c.save()
-
-            QMessageBox.information(
-                self, "Success", f"✅ Job Work Invoice saved as {filename}")
-
-            # Reset UI
-            self.job_description.clear()
-            self.job_amount_input.clear()
-            self.paid_amount_input.clear()
-
-        except Exception as e:
-            QMessageBox.warning(
-                self, "Error", f"❌ Failed to generate Job Work PDF: {e}")
+                self, "❌ Error", f"Failed to generate PDF: {e}")

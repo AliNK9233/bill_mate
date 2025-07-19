@@ -1,154 +1,144 @@
-import os
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit,
-    QFileDialog, QMessageBox, QFormLayout, QHBoxLayout, QGroupBox
+    QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton,
+    QHBoxLayout, QFormLayout, QMessageBox, QFrame
 )
-from PyQt5.QtGui import QPixmap, QIcon
+from PyQt5.QtGui import QPixmap, QFont
+from PyQt5.QtCore import Qt
 from models.company_model import get_company_profile, save_company_profile
+import os
 
 
 class CompanyProfileWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("🏢 Company Profile")
-        self.setGeometry(300, 150, 800, 500)
-        self.setWindowIcon(QIcon("data/logos/rayani_logo.png"))
-
+        self.setGeometry(400, 200, 700, 600)
         self.profile_data = get_company_profile()
-        if not self.profile_data:
-            # If no profile exists, create a blank one
-            save_company_profile("", "", "", "", "", "")
-            self.profile_data = get_company_profile()
-
+        self.is_edit_mode = False
         self.setup_ui()
 
     def setup_ui(self):
-        self.layout = QVBoxLayout()
+        main_layout = QVBoxLayout()
 
-        # Title
-        title_label = QLabel("🏢 Company Profile")
-        title_label.setStyleSheet(
-            "font-size: 20px; font-weight: bold; margin: 10px 0;")
-        self.layout.addWidget(title_label)
+        # 🌟 SAP-inspired header
+        header = QLabel("🏢 Company Profile")
+        header.setFont(QFont("Segoe UI", 18, QFont.Bold))
+        header.setAlignment(Qt.AlignCenter)
+        header.setStyleSheet(
+            "background-color: #F3F4F6; padding: 12px; border-radius: 8px; color: #0A3D62;")
+        main_layout.addWidget(header)
 
-        # --- Display Section ---
-        self.display_widget = QWidget()
-        self.display_layout = QFormLayout(self.display_widget)
+        # --- Company Logo (Fixed)
+        self.logo_display = QLabel()
+        self.logo_display.setFixedSize(150, 150)
+        self.logo_display.setAlignment(Qt.AlignCenter)
+        self.logo_display.setStyleSheet(
+            "border: 1px solid #ccc; background: #f8f9fa;")
+        main_layout.addWidget(self.logo_display)
+        self.load_logo()
 
-        self.logo_label = QLabel()
-        self.load_logo(self.profile_data[5])
+        # Separator
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setFrameShadow(QFrame.Sunken)
+        main_layout.addWidget(separator)
 
-        self.name_display = QLabel(self.profile_data[0])
-        self.gst_display = QLabel(self.profile_data[1])
-        self.address_display = QLabel(self.profile_data[2])
-        self.email_display = QLabel(self.profile_data[3])
-        self.phone_display = QLabel(self.profile_data[4])
+        # Form for Profile Details
+        self.form_layout = QFormLayout()
+        self.fields = {}
 
-        self.display_layout.addRow("Company Logo:", self.logo_label)
-        self.display_layout.addRow("Company Name:", self.name_display)
-        self.display_layout.addRow("GST Number:", self.gst_display)
-        self.display_layout.addRow("Address:", self.address_display)
-        self.display_layout.addRow("Email:", self.email_display)
-        self.display_layout.addRow("Phone Number:", self.phone_display)
+        # Company Name (Non-editable)
+        name_label = QLabel(self.profile_data["name"])
+        name_label.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        name_label.setStyleSheet("color: #0078D7;")
+        self.form_layout.addRow("🏢 Company Name:", name_label)
 
-        self.layout.addWidget(self.display_widget)
+        # Other editable fields
+        for field, label in [
+            ("gst_no", "GST No"), ("address", "Address"),
+            ("phone1", "Phone 1"), ("phone2", "Phone 2"),
+            ("email", "Email"), ("website", "Website"),
+            ("bank_name", "Bank Name"), ("bank_account", "Account No"),
+            ("ifsc_code", "IFSC Code"), ("branch_address", "Branch Address")
+        ]:
+            line_edit = QLineEdit(self.profile_data.get(field, ""))
+            line_edit.setReadOnly(True)  # Start in view mode
+            line_edit.setStyleSheet("background-color: #F3F4F6; padding: 4px;")
+            self.fields[field] = line_edit
+            self.form_layout.addRow(f"{label}:", line_edit)
 
-        # --- Edit Section ---
-        self.edit_widget = QWidget()
-        self.edit_layout = QFormLayout(self.edit_widget)
+        main_layout.addLayout(self.form_layout)
 
-        self.name_input = QLineEdit(self.profile_data[0])
-        self.gst_input = QLineEdit(self.profile_data[1])
-        self.address_input = QLineEdit(self.profile_data[2])
-        self.email_input = QLineEdit(self.profile_data[3])
-        self.phone_input = QLineEdit(self.profile_data[4])
-        self.logo_path = self.profile_data[5]
-
-        self.logo_edit_label = QLabel()
-        self.load_logo(self.logo_path)
-        upload_logo_btn = QPushButton("📁 Upload Logo")
-        upload_logo_btn.clicked.connect(self.upload_logo)
-
-        self.edit_layout.addRow("Company Logo:", self.logo_edit_label)
-        self.edit_layout.addRow("", upload_logo_btn)
-        self.edit_layout.addRow("Company Name:", self.name_input)
-        self.edit_layout.addRow("GST Number:", self.gst_input)
-        self.edit_layout.addRow("Address:", self.address_input)
-        self.edit_layout.addRow("Email:", self.email_input)
-        self.edit_layout.addRow("Phone Number:", self.phone_input)
-
-        self.layout.addWidget(self.edit_widget)
-        self.edit_widget.setVisible(False)  # Start in view mode
-
-        # --- Buttons ---
+        # Buttons
         button_layout = QHBoxLayout()
         self.edit_btn = QPushButton("✏️ Edit")
-        self.edit_btn.clicked.connect(self.enable_edit_mode)
+        self.edit_btn.setStyleSheet(
+            "background-color: #0078D7; color: white; border-radius: 5px; padding: 6px 12px;")
+        self.edit_btn.clicked.connect(self.toggle_edit_mode)
 
         self.save_btn = QPushButton("💾 Save")
+        self.save_btn.setStyleSheet(
+            "background-color: #28A745; color: white; border-radius: 5px; padding: 6px 12px;")
         self.save_btn.clicked.connect(self.save_profile)
-        self.save_btn.setVisible(False)
+        self.save_btn.hide()  # Hidden until edit mode
 
         button_layout.addWidget(self.edit_btn)
         button_layout.addWidget(self.save_btn)
-        self.layout.addLayout(button_layout)
+        main_layout.addLayout(button_layout)
 
-        self.setLayout(self.layout)
+        self.setLayout(main_layout)
 
-    def enable_edit_mode(self):
-        self.display_widget.setVisible(False)
-        self.edit_widget.setVisible(True)
-        self.edit_btn.setVisible(False)
-        self.save_btn.setVisible(True)
-
-    def load_logo(self, path):
-        if path and os.path.exists(path):
-            pixmap = QPixmap(path).scaled(150, 150)
-            self.logo_label.setPixmap(pixmap)
-            if hasattr(self, 'logo_edit_label'):
-                self.logo_edit_label.setPixmap(pixmap)
+    def load_logo(self):
+        """
+        Load company logo from fixed path.
+        """
+        logo_path = os.path.join("data", "logos", "rayani_logo.png")
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path).scaled(
+                150, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.logo_display.setPixmap(pixmap)
         else:
-            placeholder = QPixmap(150, 150)
-            placeholder.fill()
-            self.logo_label.setPixmap(placeholder)
-            if hasattr(self, 'logo_edit_label'):
-                self.logo_edit_label.setPixmap(placeholder)
+            self.logo_display.setText("📄 No Logo Available")
+            self.logo_display.setStyleSheet(
+                "color: #6C757D; font-style: italic;")
 
-    def upload_logo(self):
-        file_dialog = QFileDialog()
-        file_path, _ = file_dialog.getOpenFileName(
-            self, "Select Company Logo", "", "Image Files (*.png *.jpg *.jpeg)"
-        )
-        if file_path:
-            self.logo_path = file_path
-            self.load_logo(file_path)
+    def toggle_edit_mode(self):
+        """
+        Toggle between view and edit mode for profile fields.
+        """
+        if not self.is_edit_mode:
+            self.edit_btn.setText("🚫 Cancel")
+            self.save_btn.show()
+            for field_widget in self.fields.values():
+                field_widget.setReadOnly(False)
+                field_widget.setStyleSheet(
+                    "background-color: #FFFFFF; border: 1px solid #CED4DA; padding: 4px;")
+        else:
+            self.edit_btn.setText("✏️ Edit")
+            self.save_btn.hide()
+            for field_widget in self.fields.values():
+                field_widget.setReadOnly(True)
+                field_widget.setStyleSheet(
+                    "background-color: #F3F4F6; padding: 4px;")
+            self.load_profile_data()
+        self.is_edit_mode = not self.is_edit_mode
 
     def save_profile(self):
-        try:
-            name = self.name_input.text().strip()
-            gst = self.gst_input.text().strip()
-            address = self.address_input.text().strip()
-            email = self.email_input.text().strip()
-            phone = self.phone_input.text().strip()
-            logo = self.logo_path
+        """
+        Save profile data to DB.
+        """
+        for field, widget in self.fields.items():
+            self.profile_data[field] = widget.text()
+        save_company_profile(self.profile_data)
+        QMessageBox.information(
+            self, "✅ Success", "Company profile updated successfully.")
+        self.toggle_edit_mode()
+        self.load_profile_data()
 
-            save_company_profile(name, gst, address, email, phone, logo)
-            QMessageBox.information(
-                self, "Success", "✅ Profile saved successfully!")
-
-            # Update display values
-            self.profile_data = (name, gst, address, email, phone, logo)
-            self.name_display.setText(name)
-            self.gst_display.setText(gst)
-            self.address_display.setText(address)
-            self.email_display.setText(email)
-            self.phone_display.setText(phone)
-            self.load_logo(logo)
-
-            self.edit_widget.setVisible(False)
-            self.display_widget.setVisible(True)
-            self.edit_btn.setVisible(True)
-            self.save_btn.setVisible(False)
-        except Exception as e:
-            QMessageBox.warning(
-                self, "Error", f"❌ Failed to save profile: {e}")
+    def load_profile_data(self):
+        """
+        Reload profile data to discard unsaved changes.
+        """
+        self.profile_data = get_company_profile()
+        for field, widget in self.fields.items():
+            widget.setText(self.profile_data.get(field, ""))
