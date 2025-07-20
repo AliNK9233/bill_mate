@@ -16,7 +16,7 @@ class JobWorkWindow(QWidget):
         super().__init__()
         self.setWindowTitle("🧾 Job Work Data")
         self.setGeometry(300, 150, 1100, 600)
-        self.setWindowIcon(QIcon("data/logos/rayani_logo.png"))
+        self.setWindowIcon(QIcon("data/logos/billmate_logo.png"))
 
         self.edited_rows = {}  # Track edited rows
         self.setup_ui()

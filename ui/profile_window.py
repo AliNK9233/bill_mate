@@ -92,7 +92,7 @@ class CompanyProfileWindow(QWidget):
         """
         Load company logo from fixed path.
         """
-        logo_path = os.path.join("data", "logos", "rayani_logo.png")
+        logo_path = os.path.join("data", "logos", "billmate_logo.png")
         if os.path.exists(logo_path):
             pixmap = QPixmap(logo_path).scaled(
                 150, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)

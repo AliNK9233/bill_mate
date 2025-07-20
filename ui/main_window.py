@@ -45,9 +45,9 @@ class MainWindow(QWidget):
         self.general_stock_tab = GeneralStockWindow()
         self.tabs.addTab(self.general_stock_tab, "📦 Stock Management")
 
-        # 📊 Dashboard Tab
-        self.dashboard_tab = DashboardWindow()
-        self.tabs.addTab(self.dashboard_tab, "📊 Dashboard")
+        # # 📊 Dashboard Tab
+        # self.dashboard_tab = DashboardWindow()
+        # self.tabs.addTab(self.dashboard_tab, "📊 Dashboard")
 
         # 🔑 Admin Login & 🚪 Logout Buttons
         button_layout = QHBoxLayout()
@@ -135,6 +135,11 @@ class MainWindow(QWidget):
         self.tabs.addTab(self.sales_tab, "💸 Sales Data")
         self.admin_tabs.append(self.sales_tab)
 
+        # Job Work Tab
+        self.jobwork_tab = JobWorkWindow()
+        self.tabs.addTab(self.jobwork_tab, "🧾 Job Work Data")
+        self.admin_tabs.append(self.jobwork_tab)
+
         # 👥 Customer Management Tab
         self.customer_tab = CustomerWindow()
         self.tabs.addTab(self.customer_tab, "👥 Customer Management")
@@ -144,11 +149,6 @@ class MainWindow(QWidget):
         self.profile_tab = CompanyProfileWindow()
         self.tabs.addTab(self.profile_tab, "🏢 Company Profile")
         self.admin_tabs.append(self.profile_tab)
-
-        # Job Work Tab
-        self.jobwork_tab = JobWorkWindow()
-        self.tabs.addTab(self.jobwork_tab, "🧾 Job Work Data")
-        self.admin_tabs.append(self.jobwork_tab)
 
     def logout_admin(self):
         """

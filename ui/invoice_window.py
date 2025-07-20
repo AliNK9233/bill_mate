@@ -22,7 +22,7 @@ class InvoiceWindow(QWidget):
         super().__init__()
         self.setWindowTitle("🧾 Invoice Generator")
         self.setGeometry(200, 100, 1000, 600)
-        self.setWindowIcon(QIcon("data/logos/rayani_logo.png"))
+        self.setWindowIcon(QIcon("data/logos/billmate_logo.png"))
         self.invoice_items = []
         self.total_amount = 0.0
         self.setup_ui()
@@ -316,7 +316,7 @@ class InvoiceWindow(QWidget):
             logo_path = profile.get('logo_path')
 
             # ✅ Fallback logo if not set or missing
-            fallback_logo = os.path.abspath("data/logos/rayani_logo.png")
+            fallback_logo = os.path.abspath("data/logos/billmate_logo.png")
             if not logo_path or not os.path.exists(logo_path):
                 print(
                     f"⚠️ Company logo missing, using fallback: {fallback_logo}")
@@ -503,7 +503,7 @@ class InvoiceWindow(QWidget):
             logo_path = profile.get('logo_path')
 
             # ✅ Fallback logo if not set or missing
-            fallback_logo = os.path.abspath("data/logos/rayani_logo.png")
+            fallback_logo = os.path.abspath("data/logos/billmate_logo.png")
             if not logo_path or not os.path.exists(logo_path):
                 print(
                     f"⚠️ Company logo missing, using fallback: {fallback_logo}")

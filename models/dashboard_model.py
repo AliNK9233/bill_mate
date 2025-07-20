@@ -5,49 +5,57 @@ from datetime import datetime, timedelta
 # Sales Metrics
 
 
-def get_total_sales():
+def get_total_sales(year):
     """
-    Get the total sum of all invoice amounts.
+    Get the total sum of all invoice amounts for a given year.
     Returns: Float representing total sales or 0.0 if no sales.
     """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute('SELECT SUM(total_amount) FROM invoices')
+    c.execute(
+        'SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE strftime("%Y", date)=?', (year,))
     result = c.fetchone()[0]
     conn.close()
-    return result or 0.0
+    return result
 
 
-def get_total_customers():
+def get_total_customers(year):
     """
-    Get the total number of customers.
+    Get the total number of customers who made purchases in a given year.
     Returns: Integer count of customers or 0 if none.
     """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute('SELECT COUNT(*) FROM customers')
+    c.execute('''
+        SELECT COALESCE(COUNT(DISTINCT customer_id), 0) FROM invoices
+        WHERE strftime("%Y", date)=?
+    ''', (year,))
     result = c.fetchone()[0]
     conn.close()
-    return result or 0
+    return result
 
 
-def get_total_pending_balance():
+def get_total_pending_balance(year):
     """
-    Get the total pending balance from invoices with positive balance.
+    Get the total pending balance from invoices with positive balance for a given year.
     Returns: Float representing total pending balance or 0.0 if none.
     """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute('SELECT SUM(balance) FROM invoices WHERE balance > 0')
+    c.execute('''
+        SELECT COALESCE(SUM(balance), 0) FROM invoices
+        WHERE balance > 0 AND strftime("%Y", date)=?
+    ''', (year,))
     result = c.fetchone()[0]
     conn.close()
-    return result or 0.0
-
+    return result
 
 # Customer Analytics
-def get_top_customers():
+
+
+def get_top_customers(year):
     """
-    Get the top 5 customers by total sales amount.
+    Get the top 5 customers by total sales amount for a given year.
     Returns: List of tuples (name, phone, total_sales).
     """
     conn = sqlite3.connect(DB_FILE)
@@ -56,16 +64,18 @@ def get_top_customers():
         SELECT c.name, c.phone, SUM(i.total_amount) as total_sales
         FROM customers c
         JOIN invoices i ON c.id = i.customer_id
+        WHERE strftime("%Y", i.date)=?
         GROUP BY c.id
         ORDER BY total_sales DESC
         LIMIT 5
-    ''')
+    ''', (year,))
     rows = c.fetchall()
     conn.close()
     return rows
 
-
 # Inventory Management
+
+
 def get_low_stock_items():
     """
     Get items with total quantity <= 10 across all batches.
@@ -85,56 +95,85 @@ def get_low_stock_items():
     conn.close()
     return rows
 
-
 # Job Work Metrics
-def get_total_jobwork():
+
+
+def get_total_jobwork(year):
     """
-    Get total amount for all jobwork invoices.
+    Get total amount for all jobwork invoices for a given year.
     Returns: Float representing total jobwork amount or 0.0 if none.
     """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute('SELECT SUM(total_amount) FROM jobwork_invoices')
+    c.execute(
+        'SELECT COALESCE(SUM(total_amount), 0) FROM jobwork_invoices WHERE strftime("%Y", date)=?', (year,))
     result = c.fetchone()[0]
     conn.close()
-    return result or 0.0
+    return result
 
 
-def get_total_jobwork_pending():
+def get_total_jobwork_pending(year):
     """
-    Get total pending balance for jobwork invoices.
+    Get total pending balance for jobwork invoices for a given year.
     Returns: Float representing total pending jobwork balance or 0.0 if none.
     """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute('SELECT SUM(balance) FROM jobwork_invoices WHERE balance > 0')
+    c.execute('''
+        SELECT COALESCE(SUM(balance), 0) FROM jobwork_invoices
+        WHERE balance > 0 AND strftime("%Y", date)=?
+    ''', (year,))
     result = c.fetchone()[0]
     conn.close()
-    return result or 0.0
+    return result
 
 
-def get_monthly_sales_jobwork():
+def get_monthly_sales_jobwork(year):
     """
-    Get monthly sales and jobwork totals for the last 6 months.
-    Returns: List of tuples (month, sales, jobwork) in chronological order.
+    Get monthly sales and jobwork totals for the selected year.
+    Returns: List of tuples (month_name, sales, jobwork) for Jan–Dec.
     """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # Calculate the date 6 months ago from July 20, 2025
-    end_date = datetime(2025, 7, 20)
-    start_date = end_date - timedelta(days=6*30)  # Approximate 6 months
+
+    # Fetch monthly data from invoices
     c.execute('''
-        SELECT strftime('%b %Y', date) as month,
-               SUM(CASE WHEN total_amount IS NOT NULL THEN total_amount ELSE 0 END) as sales,
+        SELECT strftime('%m', date) as month_num,
+               SUM(total_amount) as sales,
                (SELECT SUM(total_amount)
                 FROM jobwork_invoices
-                WHERE strftime('%m%Y', date) = strftime('%m%Y', invoices.date)
-               ) as jobwork
+                WHERE strftime('%m', date)=strftime('%m', invoices.date)
+                  AND strftime('%Y', date)=?) as jobwork
         FROM invoices
-        WHERE date BETWEEN ? AND ?
-        GROUP BY month
-        ORDER BY date ASC
-    ''', (start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+        WHERE strftime('%Y', date)=?
+        GROUP BY month_num
+    ''', (year, year))
     rows = c.fetchall()
     conn.close()
-    return rows
+
+    # Build a dictionary from fetched data
+    data_dict = {int(row[0]): (row[1] or 0, row[2] or 0) for row in rows}
+
+    # Prepare full 12 months with zero-filled data if missing
+    result = []
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    for month_num in range(1, 13):
+        sales, jobwork = data_dict.get(month_num, (0, 0))
+        result.append((f"{month_names[month_num - 1]} {year}", sales, jobwork))
+
+    return result
+
+
+def get_available_invoice_years():
+    """
+    Get a list of distinct years from the invoices table.
+    Returns: List of years (strings).
+    """
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute(
+        'SELECT DISTINCT strftime("%Y", date) FROM invoices ORDER BY strftime("%Y", date) DESC')
+    years = [row[0] for row in c.fetchall()]
+    conn.close()
+    return years

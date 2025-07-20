@@ -14,7 +14,7 @@ class GeneralStockWindow(QWidget):
         super().__init__()
         self.setWindowTitle("📦 Stock Management (User)")
         self.setGeometry(200, 100, 1000, 600)
-        self.setWindowIcon(QIcon("data/logos/rayani_logo.png"))
+        self.setWindowIcon(QIcon("data/logos/billmate_logo.png"))
         self.setup_ui()
         self.load_stock_data()
 

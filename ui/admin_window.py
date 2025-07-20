@@ -22,7 +22,7 @@ class AdminWindow(QWidget):
         super().__init__()
         self.setWindowTitle("🔒 Admin Panel")
         self.setGeometry(200, 100, 1100, 700)
-        self.setWindowIcon(QIcon("data/logos/rayani_logo.png"))
+        self.setWindowIcon(QIcon("data/logos/billmate_logo.png"))
 
         # Initialize DB if needed
         initialize_db()

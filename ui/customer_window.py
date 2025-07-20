@@ -17,7 +17,7 @@ class CustomerWindow(QWidget):
         super().__init__()
         self.setWindowTitle("👥 Customer Management")
         self.setGeometry(300, 150, 900, 600)
-        self.setWindowIcon(QIcon("data/logos/rayani_logo.png"))
+        self.setWindowIcon(QIcon("data/logos/billmate_logo.png"))
 
         self.setup_ui()
         self.load_customers()
