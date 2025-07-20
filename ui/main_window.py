@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QDialog, QFormLayout, QDialogButtonBox, QHBoxLayout
 )
 from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import Qt  # ✅ Needed for full-screen flags
 from ui import jobwork_invoice_window
 from ui.general_stock_window import GeneralStockWindow
 from ui.admin_stock_window import AdminStockWindow
@@ -17,12 +18,13 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(" Bill Mate")
-        self.setGeometry(200, 100, 1100, 700)
         self.setWindowIcon(QIcon("data/logos/billmate_logo.png"))
-
         self.admin_tabs = []  # Track admin-only tabs
 
         self.setup_ui()
+
+        # ✅ Start in maximized mode
+        self.showMaximized()
 
     def setup_ui(self):
         self.layout = QVBoxLayout()
@@ -51,8 +53,13 @@ class MainWindow(QWidget):
         self.logout_btn.setDisabled(True)  # Initially disabled
         self.logout_btn.clicked.connect(self.logout_admin)
 
+        # 🖥️ Full-Screen Toggle Button
+        self.fullscreen_btn = QPushButton("🖥️ Full Screen")
+        self.fullscreen_btn.clicked.connect(self.toggle_fullscreen)
+
         button_layout.addWidget(self.admin_btn)
         button_layout.addWidget(self.logout_btn)
+        button_layout.addWidget(self.fullscreen_btn)
 
         self.layout.addLayout(button_layout)
         self.layout.addWidget(self.tabs)
@@ -60,6 +67,17 @@ class MainWindow(QWidget):
 
         # Set Invoice Tab as default
         self.tabs.setCurrentIndex(0)
+
+    def toggle_fullscreen(self):
+        """
+        Toggle between Full Screen and Normal Window
+        """
+        if self.isFullScreen():
+            self.showNormal()
+            self.fullscreen_btn.setText("🖥️ Full Screen")
+        else:
+            self.showFullScreen()
+            self.fullscreen_btn.setText("❌ Exit Full Screen")
 
     def admin_login(self):
         """

@@ -127,11 +127,21 @@ class InvoiceWindow(QWidget):
 
         # 📥 Generate PDF Button
         generate_btn = QPushButton("📥 Generate PDF & Save Invoice")
-        generate_btn.clicked.connect(self.generate_pdf)
+        generate_btn.clicked.connect(self.handle_generate_pdf)
         layout.addWidget(generate_btn)
 
         self.setLayout(layout)
 
+    def handle_generate_pdf(self):
+        """
+        Decide whether to generate normal or GST invoice PDF
+        based on billing type selection.
+        """
+        selected_type = self.billing_type.currentText()
+        if selected_type == "GST Bill":
+            self.generate_pdf_tax()
+        else:
+            self.generate_pdf_normal()
 
     def load_customer_options(self):
         """
@@ -166,12 +176,12 @@ class InvoiceWindow(QWidget):
         self.item_lookup = {}
         self.item_search.clear()
         for row in items:
-            stock_qty = row[7]  # Adjust index if stock quantity is in a different column
+            # Adjust index if stock quantity is in a different column
+            stock_qty = row[7]
             if stock_qty > 0:  # ✅ Only include items with stock > 0
                 display_text = f"{row[2]} - {row[1]}"  # Code - Name
                 self.item_search.addItem(display_text)
                 self.item_lookup[display_text] = row
-
 
     def add_item_to_invoice(self):
         """
@@ -249,11 +259,12 @@ class InvoiceWindow(QWidget):
         self.grand_total_label.setText(f"💳 Grand Total: ₹{grand_total:.2f}")
         self.grand_total_label.setVisible(True)
 
-    def generate_pdf(self):
+    def generate_pdf_tax(self):
         """
-        Generate a professional PDF Invoice:
-        - Includes Discount column
-        - Logo properly sized
+        Generate a professional GST-compliant Tax Invoice:
+        - Includes Tax Amounts (CGST, SGST, IGST)
+        - Shows Discount (default ₹0 for now)
+        - Proper logo with fallback
         - Clean professional layout
         """
         from reportlab.lib.units import mm
@@ -269,15 +280,15 @@ class InvoiceWindow(QWidget):
             phone = profile.get('phone1', "+91-9876543210")
             logo_path = profile.get('logo_path')
 
-            # ✅ Set fallback logo path
+            # ✅ Fallback logo if not set or missing
+            fallback_logo = os.path.abspath("data/logos/rayani_logo.png")
             if not logo_path or not os.path.exists(logo_path):
-                logo_path = "data/logos/default_logo.png"
-
-            # Debug: Check if the file actually exists
-            if not os.path.exists(logo_path):
-                print(f"⚠️ Logo file missing at: {logo_path}")
+                print(
+                    f"⚠️ Company logo missing, using fallback: {fallback_logo}")
+                logo_path = fallback_logo
             else:
-                print(f"✅ Using logo: {logo_path}")
+                logo_path = os.path.abspath(logo_path)  # Absolute path
+                print(f"✅ Using company logo: {logo_path}")
 
             # 🧑 Customer details
             customer_name = self.customer_select.currentText().strip()
@@ -294,16 +305,22 @@ class InvoiceWindow(QWidget):
             customer_id = save_customer(customer_name, customer_phone, "")
             invoice_no = get_next_invoice_number()
 
-            total_amount = sum(item['total'] for item in self.invoice_items)
+            # 🧮 Calculate Totals
+            item_total = sum(item['total'] for item in self.invoice_items)
+            tax_total = sum(
+                (item['total'] * item['gst'] / 100) for item in self.invoice_items
+            )
+            grand_total = item_total + tax_total
+
             paid_amount = float(self.paid_amount_input.text().strip() or 0.0)
-            balance = total_amount - paid_amount
+            balance = grand_total - paid_amount
             status = "Paid" if balance <= 0 else (
                 "Partial" if paid_amount > 0 else "Unpaid")
 
             # Save invoice to DB
             save_invoice(
                 customer_id=customer_id,
-                total_amount=total_amount,
+                total_amount=grand_total,
                 paid_amount=paid_amount,
                 balance=balance,
                 payment_method="Cash",
@@ -311,17 +328,20 @@ class InvoiceWindow(QWidget):
                 items=self.invoice_items
             )
 
-            # Generate PDF
+            # 📄 Generate PDF
             filename = f"Invoice_{invoice_no}.pdf"
             c = canvas.Canvas(filename, pagesize=A4)
             width, height = A4
 
-            # --- Draw Header ---
-            if os.path.exists(logo_path):
+            # --- Header with Logo ---
+            try:
                 c.drawImage(
-                    logo_path, 30, height - 80,
-                    width=50 * mm, preserveAspectRatio=True, mask='auto'
+                    logo_path, 30, height - 90,
+                    width=40 * mm, height=20 * mm,
+                    preserveAspectRatio=True, mask='auto'
                 )
+            except Exception as logo_err:
+                print(f"⚠️ Failed to load logo: {logo_err}")
 
             c.setFont("Helvetica-Bold", 16)
             c.drawString(120, height - 50, company_name)
@@ -346,8 +366,8 @@ class InvoiceWindow(QWidget):
             c.setFont("Helvetica-Bold", 10)
 
             columns = ["S.No", "Item Name", "Qty", "Unit", "HSN Code",
-                    "Price", "Tax", "Discount", "Amount"]
-            col_positions = [35, 70, 200, 240, 290, 350, 400, 450, 500]
+                       "Price", "Tax %", "Tax Amt", "Amount"]
+            col_positions = [35, 70, 200, 240, 290, 350, 400, 450, 510]
             for idx, col in enumerate(columns):
                 c.drawString(col_positions[idx], y + 5, col)
 
@@ -355,6 +375,9 @@ class InvoiceWindow(QWidget):
             y -= 20
             c.setFont("Helvetica", 10)
             for idx, item in enumerate(self.invoice_items, start=1):
+                tax_amount = item['total'] * (item['gst'] / 100)
+                line_total = item['total'] + tax_amount
+
                 c.drawString(col_positions[0], y, str(idx))
                 c.drawString(col_positions[1], y, item['name'])
                 c.drawString(col_positions[2], y, str(item['qty']))
@@ -362,23 +385,32 @@ class InvoiceWindow(QWidget):
                 c.drawString(col_positions[4], y, item.get('hsn', ''))
                 c.drawString(col_positions[5], y, f"{item['price']:.2f}")
                 c.drawString(col_positions[6], y, f"{item['gst']}%")
-                c.drawString(col_positions[7], y, "0.00")  # Default Discount ₹0
-                c.drawString(col_positions[8], y, f"{item['total']:.2f}")
+                c.drawString(col_positions[7], y, f"{tax_amount:.2f}")
+                c.drawString(col_positions[8], y, f"{line_total:.2f}")
                 y -= 15
 
                 if y < 100:
                     c.showPage()
                     y = height - 140
 
-            # --- Totals ---
+            # --- Totals Section ---
             y -= 20
             c.setFont("Helvetica-Bold", 11)
-            c.drawString(400, y, "Grand Total:")
-            c.drawRightString(width - 40, y, f"₹{total_amount:.2f}")
+            c.drawString(400, y, "Item Total:")
+            c.drawRightString(width - 40, y, f"₹{item_total:.2f}")
 
-            # --- Amount in words ---
+            y -= 15
+            c.drawString(400, y, "Total Tax:")
+            c.drawRightString(width - 40, y, f"₹{tax_total:.2f}")
+
+            y -= 15
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(400, y, "Grand Total:")
+            c.drawRightString(width - 40, y, f"₹{grand_total:.2f}")
+
+            # --- Amount in Words ---
             amount_in_words = num2words(
-                total_amount, lang='en_IN').title() + " Only"
+                grand_total, lang='en_IN').title() + " Only"
             y -= 20
             c.setFont("Helvetica-Oblique", 10)
             c.drawString(30, y, f"Amount in Words: {amount_in_words}")
@@ -400,10 +432,162 @@ class InvoiceWindow(QWidget):
             self.paid_amount_input.clear()
 
         except Exception as e:
+            print(f"❌ Exception during PDF generation: {e}")
             QMessageBox.warning(
                 self, "❌ Error", f"Failed to generate PDF: {e}"
             )
 
+    def generate_pdf_normal(self):
+        """
+        Generate a professional retail invoice:
+        - No tax calculations
+        - Clean layout with fallback logo
+        """
+        from reportlab.lib.units import mm
+        import os
 
+        try:
+            # 🏢 Load company profile
+            profile = get_company_profile()
+            company_name = profile.get('name', "Dummy Company Pvt Ltd")
+            gst_no = profile.get('gst_no', "27ABCDE1234F1Z5")
+            address = profile.get('address', "123 Example Street, Test City")
+            email = profile.get('email', "info@dummy.com")
+            phone = profile.get('phone1', "+91-9876543210")
+            logo_path = profile.get('logo_path')
 
+            # ✅ Fallback logo if not set or missing
+            fallback_logo = os.path.abspath("data/logos/rayani_logo.png")
+            if not logo_path or not os.path.exists(logo_path):
+                print(
+                    f"⚠️ Company logo missing, using fallback: {fallback_logo}")
+                logo_path = fallback_logo
+            else:
+                logo_path = os.path.abspath(logo_path)
+                print(f"✅ Using company logo: {logo_path}")
 
+            # 🧑 Customer details
+            customer_name = self.customer_select.currentText().strip()
+            customer_phone = self.customer_phone_input.text().strip()
+
+            if not customer_name or not self.invoice_items:
+                QMessageBox.warning(
+                    self, "Missing Data",
+                    "⚠️ Please select a customer and add at least one invoice item."
+                )
+                return
+
+            # Save customer
+            customer_id = save_customer(customer_name, customer_phone, "")
+            invoice_no = get_next_invoice_number()
+
+            # 🧮 Totals
+            grand_total = sum(item['total'] for item in self.invoice_items)
+
+            paid_amount = float(self.paid_amount_input.text().strip() or 0.0)
+            balance = grand_total - paid_amount
+            status = "Paid" if balance <= 0 else (
+                "Partial" if paid_amount > 0 else "Unpaid")
+
+            # Save invoice to DB
+            save_invoice(
+                customer_id=customer_id,
+                total_amount=grand_total,
+                paid_amount=paid_amount,
+                balance=balance,
+                payment_method="Cash",
+                status=status,
+                items=self.invoice_items
+            )
+
+            # 📄 Generate PDF
+            filename = f"Invoice_{invoice_no}.pdf"
+            c = canvas.Canvas(filename, pagesize=A4)
+            width, height = A4
+
+            # --- Draw Header ---
+            try:
+                c.drawImage(
+                    logo_path, 30, height - 90,
+                    width=40 * mm, height=20 * mm,
+                    preserveAspectRatio=True, mask='auto'
+                )
+            except Exception as logo_err:
+                print(f"⚠️ Failed to load logo: {logo_err}")
+
+            c.setFont("Helvetica-Bold", 16)
+            c.drawString(120, height - 50, company_name)
+            c.setFont("Helvetica", 10)
+            c.drawString(120, height - 65, address)
+            c.drawString(120, height - 80, f"Email: {email} | Phone: {phone}")
+
+            # --- Customer Info ---
+            y = height - 120
+            c.setFont("Helvetica-Bold", 11)
+            c.drawString(30, y, "Billed To:")
+            c.setFont("Helvetica", 10)
+            c.drawString(100, y, customer_name)
+            c.drawString(100, y - 15, f"Phone: {customer_phone}")
+
+            # --- Table Header ---
+            y -= 40
+            c.setFillColor(colors.lightgrey)
+            c.rect(30, y, width - 60, 20, fill=True, stroke=False)
+            c.setFillColor(colors.black)
+            c.setFont("Helvetica-Bold", 10)
+
+            columns = ["S.No", "Item Name", "Qty", "Unit", "Price", "Amount"]
+            col_positions = [35, 70, 200, 260, 340, 420]
+            for idx, col in enumerate(columns):
+                c.drawString(col_positions[idx], y + 5, col)
+
+            # --- Table Content ---
+            y -= 20
+            c.setFont("Helvetica", 10)
+            for idx, item in enumerate(self.invoice_items, start=1):
+                c.drawString(col_positions[0], y, str(idx))
+                c.drawString(col_positions[1], y, item['name'])
+                c.drawString(col_positions[2], y, str(item['qty']))
+                c.drawString(col_positions[3], y, item.get('unit', 'Nos'))
+                c.drawString(col_positions[4], y, f"{item['price']:.2f}")
+                c.drawString(col_positions[5], y, f"{item['total']:.2f}")
+                y -= 15
+
+                if y < 100:
+                    c.showPage()
+                    y = height - 140
+
+            # --- Totals Section ---
+            y -= 20
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(400, y, "Grand Total:")
+            c.drawRightString(width - 40, y, f"₹{grand_total:.2f}")
+
+            # --- Amount in Words ---
+            amount_in_words = num2words(
+                grand_total, lang='en_IN').title() + " Only"
+            y -= 20
+            c.setFont("Helvetica-Oblique", 10)
+            c.drawString(30, y, f"Amount in Words: {amount_in_words}")
+
+            # Footer
+            y -= 40
+            c.setFont("Helvetica", 9)
+            c.drawString(30, y, "Thank you for your business!")
+            c.save()
+
+            QMessageBox.information(
+                self, "✅ Success", f"Invoice saved as {filename}"
+            )
+
+            # Reset UI
+            self.invoice_table.setRowCount(0)
+            self.invoice_items.clear()
+            self.update_invoice_total()
+            self.paid_amount_input.clear()
+
+        except Exception as e:
+            print(f"❌ Exception during PDF generation: {e}")
+            QMessageBox.warning(
+                self, "❌ Error", f"Failed to generate PDF: {e}"
+            )
