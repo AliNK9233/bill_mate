@@ -3,6 +3,15 @@ __pycache__/
 *.py[cod]
 *.pyo
 
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore SQLite database
+data/database.db
+
+
 # Environment
 .env
 env/
@@ -24,6 +33,7 @@ dist/
 
 # Logs
 *.log
+*.tmp
 
 # IDE specific files
 .vscode/
@@ -33,3 +43,7 @@ dist/
 
 # Databases
 *.db
+
+# Ignore system files
+.DS_Store
+Thumbs.db
