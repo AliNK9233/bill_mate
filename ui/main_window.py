@@ -45,6 +45,10 @@ class MainWindow(QWidget):
         self.general_stock_tab = GeneralStockWindow()
         self.tabs.addTab(self.general_stock_tab, "📦 Stock Management")
 
+        # 📊 Dashboard Tab
+        self.dashboard_tab = DashboardWindow()
+        self.tabs.addTab(self.dashboard_tab, "📊 Dashboard")
+
         # 🔑 Admin Login & 🚪 Logout Buttons
         button_layout = QHBoxLayout()
         self.admin_btn = QPushButton("🔑 Admin Login")
