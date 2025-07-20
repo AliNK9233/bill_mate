@@ -66,6 +66,8 @@ def save_customer(name, phone, address, gst_no=None):
     """
     Save customer if not exists, return customer ID.
     """
+    name = name.strip()
+    phone = phone.strip()
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
 

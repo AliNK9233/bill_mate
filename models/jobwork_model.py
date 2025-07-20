@@ -1,3 +1,4 @@
+from models.stock_model import DB_FILE  # ✅ Use your existing DB file path
 import sqlite3
 import datetime
 import os
@@ -157,3 +158,46 @@ def get_jobwork_invoice_items(invoice_no):
     conn.close()
 
     return [{"description": desc, "amount": amt} for desc, amt in items]
+
+
+def update_jobwork_invoice_entry(invoice_no, paid_amount, balance, status):
+    """
+    Update Paid Amount, Balance, and Status for a Job Work Invoice.
+    """
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+
+        # ✅ Update the jobwork_invoices table
+        c.execute('''
+            UPDATE jobwork_invoices
+            SET paid_amount = ?, balance = ?, status = ?
+            WHERE invoice_no = ?
+        ''', (paid_amount, balance, status, invoice_no))
+
+        # Update the customer's outstanding balance
+        if status == "Paid":
+            # Set outstanding_balance = 0 for this customer if all invoices are paid
+            c.execute('''
+                UPDATE customers
+                SET outstanding_balance = outstanding_balance - ?
+                WHERE id = (
+                    SELECT customer_id FROM jobwork_invoices WHERE invoice_no = ?
+                )
+            ''', (paid_amount, invoice_no))
+        else:
+            # Adjust outstanding balance for Partial/Unpaid
+            c.execute('''
+                UPDATE customers
+                SET outstanding_balance = outstanding_balance + ?
+                WHERE id = (
+                    SELECT customer_id FROM jobwork_invoices WHERE invoice_no = ?
+                )
+            ''', (balance, invoice_no))
+
+        conn.commit()
+        conn.close()
+        print(f"✅ Job Work Invoice {invoice_no} updated successfully.")
+    except Exception as e:
+        print(f"❌ Error updating Job Work Invoice {invoice_no}: {e}")
+        raise

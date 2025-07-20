@@ -12,6 +12,7 @@ from ui.sales_window import SalesWindow
 from ui.customer_window import CustomerWindow
 from ui.invoice_window import InvoiceWindow
 from ui.profile_window import CompanyProfileWindow
+from ui.jobwork_window import JobWorkWindow
 
 
 class MainWindow(QWidget):
@@ -138,6 +139,12 @@ class MainWindow(QWidget):
         # 🏢 Company Profile Tab
         self.profile_tab = CompanyProfileWindow()
         self.tabs.addTab(self.profile_tab, "🏢 Company Profile")
+        self.admin_tabs.append(self.profile_tab)
+
+        # Job Work Tab
+        self.jobwork_tab = JobWorkWindow()
+        self.tabs.addTab(self.jobwork_tab, "🧾 Job Work Data")
+        self.admin_tabs.append(self.jobwork_tab)
 
     def logout_admin(self):
         """

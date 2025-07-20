@@ -30,30 +30,43 @@ class InvoiceWindow(QWidget):
     def setup_ui(self):
         layout = QVBoxLayout()
 
-        # --- Job Work UI ---
-        self.job_description = QTextEdit()
-        self.job_description.setPlaceholderText("📝 Enter Job Description")
-        self.job_description.hide()  # Hide initially
+        # 🌟 Title
+        title_label = QLabel("🧾 Invoice Generator")
+        title_label.setFont(QFont("Segoe UI", 18, QFont.Bold))
+        title_label.setStyleSheet("color: #0A3D62;")
+        layout.addWidget(title_label)
 
-        self.job_amount_input = QLineEdit()
-        self.job_amount_input.setPlaceholderText("💰 Enter Job Work Amount")
-        self.job_amount_input.hide()  # Hide initially
-
-        layout.addWidget(self.job_description)
-        layout.addWidget(self.job_amount_input)
-
-        # 🧑 Customer Details
+        # 🧑 Customer Section
         customer_layout = QHBoxLayout()
 
+        # 🆕 New Dropdown: Existing / Guest
+        self.customer_type_select = QComboBox()
+        self.customer_type_select.addItems(
+            ["📋 Existing Customer", "🆕 Guest Customer"])
+        self.customer_type_select.currentIndexChanged.connect(
+            self.toggle_customer_mode)
+
+        # Customer Name Dropdown (for Existing)
         self.customer_select = QComboBox()
-        self.customer_select.setEditable(True)
+        self.customer_select.setEditable(False)
         self.load_customer_options()
         self.customer_select.currentIndexChanged.connect(self.customer_changed)
 
+        # Guest Customer Inputs
+        self.guest_name_input = QLineEdit()
+        self.guest_name_input.setPlaceholderText("👤 Enter Customer Name")
+        self.guest_name_input.hide()  # hidden initially
+
         self.customer_phone_input = QLineEdit()
         self.customer_phone_input.setPlaceholderText("📞 Phone")
-        customer_layout.addWidget(self.customer_select)
-        customer_layout.addWidget(self.customer_phone_input)
+        self.customer_phone_input.setMaxLength(
+            10)  # optional: phone length limit
+
+        customer_layout.addWidget(self.customer_type_select, 1)
+        customer_layout.addWidget(self.customer_select, 3)
+        customer_layout.addWidget(self.guest_name_input, 3)
+        customer_layout.addWidget(self.customer_phone_input, 2)
+
         layout.addLayout(customer_layout)
 
         # 📦 Item Search + Quantity
@@ -62,14 +75,13 @@ class InvoiceWindow(QWidget):
         self.load_item_options()
         self.item_search.setEditable(True)
         completer = QCompleter([self.item_search.itemText(i)
-                               for i in range(self.item_search.count())])
+                                for i in range(self.item_search.count())])
         completer.setCaseSensitivity(False)
         self.item_search.setCompleter(completer)
 
         self.qty_input = QLineEdit()
         self.qty_input.setPlaceholderText("Qty")
-        self.qty_input.returnPressed.connect(
-            self.add_item_to_invoice)  # ⏎ Press Enter to add
+        self.qty_input.returnPressed.connect(self.add_item_to_invoice)
         add_item_btn = QPushButton("➕ Add Item")
         add_item_btn.clicked.connect(self.add_item_to_invoice)
 
@@ -86,7 +98,7 @@ class InvoiceWindow(QWidget):
         )
         layout.addWidget(self.invoice_table)
 
-        # 💵 Payment & Billing Type
+        # 💵 Payment Section
         payment_layout = QHBoxLayout()
         self.paid_amount_input = QLineEdit()
         self.paid_amount_input.setPlaceholderText("💰 Amount Paid")
@@ -96,7 +108,6 @@ class InvoiceWindow(QWidget):
 
         self.billing_type = QComboBox()
         self.billing_type.addItems(["Normal Bill", "GST Bill"])
-
         self.billing_type.currentIndexChanged.connect(
             self.update_invoice_total)
 
@@ -109,18 +120,16 @@ class InvoiceWindow(QWidget):
         payment_layout.addWidget(self.payment_status_select)
         layout.addLayout(payment_layout)
 
-        # 💰 Total Label (Big Bold Font)
+        # 💰 Total Labels
         self.total_label = QLabel("💰 Total: ₹0.00")
         self.total_label.setFont(QFont("Arial", 14, QFont.Bold))
         layout.addWidget(self.total_label)
 
-        # 💸 GST Total Label (Hidden by default)
         self.gst_total_label = QLabel("GST Total: ₹0.00")
         self.gst_total_label.setFont(QFont("Arial", 12, QFont.Bold))
-        self.gst_total_label.setVisible(False)  # Hide initially
+        self.gst_total_label.setVisible(False)
         layout.addWidget(self.gst_total_label)
 
-        # 💳 Grand Total Label (Always visible)
         self.grand_total_label = QLabel("💳 Grand Total: ₹0.00")
         self.grand_total_label.setFont(QFont("Arial", 14, QFont.Bold))
         layout.addWidget(self.grand_total_label)
@@ -131,6 +140,31 @@ class InvoiceWindow(QWidget):
         layout.addWidget(generate_btn)
 
         self.setLayout(layout)
+
+    def toggle_customer_mode(self):
+        """
+        Switch between existing customer dropdown and guest customer input.
+        """
+        if self.customer_type_select.currentText() == "🆕 Guest Customer":
+            self.customer_select.hide()
+            self.guest_name_input.show()
+        else:
+            self.guest_name_input.hide()
+            self.customer_select.show()
+
+    def get_customer_details(self):
+        """
+        Return selected/entered customer name and phone (trimmed).
+        """
+        if self.customer_type_select.currentText() == "🆕 Guest Customer":
+            name = self.guest_name_input.text().strip()
+            phone = self.customer_phone_input.text().strip()
+        else:
+            selected_text = self.customer_select.currentText()
+            name = selected_text.split(
+                " (")[0].strip()  # remove trailing phone
+            phone, _ = self.customer_lookup.get(selected_text, ("", ""))
+        return name, phone
 
     def handle_generate_pdf(self):
         """
@@ -262,13 +296,13 @@ class InvoiceWindow(QWidget):
     def generate_pdf_tax(self):
         """
         Generate a professional GST-compliant Tax Invoice:
-        - Includes Tax Amounts (CGST, SGST, IGST)
-        - Shows Discount (default ₹0 for now)
+        - Includes Invoice No and Date in header
         - Proper logo with fallback
         - Clean professional layout
         """
         from reportlab.lib.units import mm
         import os
+        import datetime
 
         try:
             # 🏢 Load company profile
@@ -277,7 +311,8 @@ class InvoiceWindow(QWidget):
             gst_no = profile.get('gst_no', "27ABCDE1234F1Z5")
             address = profile.get('address', "123 Example Street, Test City")
             email = profile.get('email', "info@dummy.com")
-            phone = profile.get('phone1', "+91-9876543210")
+            phone1 = profile.get('phone1', "+91-9876543210")
+            phone2 = profile.get('phone2', "+91-9123456789")
             logo_path = profile.get('logo_path')
 
             # ✅ Fallback logo if not set or missing
@@ -287,12 +322,11 @@ class InvoiceWindow(QWidget):
                     f"⚠️ Company logo missing, using fallback: {fallback_logo}")
                 logo_path = fallback_logo
             else:
-                logo_path = os.path.abspath(logo_path)  # Absolute path
+                logo_path = os.path.abspath(logo_path)
                 print(f"✅ Using company logo: {logo_path}")
 
             # 🧑 Customer details
-            customer_name = self.customer_select.currentText().strip()
-            customer_phone = self.customer_phone_input.text().strip()
+            customer_name, customer_phone = self.get_customer_details()
 
             if not customer_name or not self.invoice_items:
                 QMessageBox.warning(
@@ -304,6 +338,7 @@ class InvoiceWindow(QWidget):
             # Save customer
             customer_id = save_customer(customer_name, customer_phone, "")
             invoice_no = get_next_invoice_number()
+            invoice_date = datetime.datetime.now().strftime("%d-%m-%Y %H:%M")
 
             # 🧮 Calculate Totals
             item_total = sum(item['total'] for item in self.invoice_items)
@@ -333,25 +368,34 @@ class InvoiceWindow(QWidget):
             c = canvas.Canvas(filename, pagesize=A4)
             width, height = A4
 
-            # --- Header with Logo ---
-            try:
-                c.drawImage(
-                    logo_path, 30, height - 90,
-                    width=40 * mm, height=20 * mm,
-                    preserveAspectRatio=True, mask='auto'
-                )
-            except Exception as logo_err:
-                print(f"⚠️ Failed to load logo: {logo_err}")
+            # --- Header with Logo and Company Info ---
+            if os.path.exists(logo_path):
+                try:
+                    c.drawImage(
+                        logo_path, 30, height - 90,
+                        width=40 * mm, height=20 * mm,
+                        preserveAspectRatio=True, mask='auto'
+                    )
+                except Exception as logo_err:
+                    print(f"⚠️ Failed to load logo: {logo_err}")
 
             c.setFont("Helvetica-Bold", 16)
             c.drawString(120, height - 50, company_name)
-            c.setFont("Helvetica", 10)
-            c.drawString(120, height - 65, f"GSTIN: {gst_no}")
-            c.drawString(120, height - 80, address)
-            c.drawString(120, height - 95, f"Email: {email} | Phone: {phone}")
+
+            c.setFont("Helvetica", 9)
+            c.drawString(120, height - 65, address)
+            c.drawString(120, height - 78, f"GSTIN: {gst_no}")
+            c.drawString(120, height - 91, f"Phone: {phone1}, {phone2}")
+            c.drawString(120, height - 104, f"Email: {email}")
+
+            # --- Invoice Header Info (Invoice No and Date) ---
+            c.setFont("Helvetica-Bold", 11)
+            c.drawRightString(width - 40, height - 50,
+                              f"Invoice No: {invoice_no}")
+            c.drawRightString(width - 40, height - 65, f"Date: {invoice_date}")
 
             # --- Customer Info ---
-            y = height - 120
+            y = height - 130
             c.setFont("Helvetica-Bold", 11)
             c.drawString(30, y, "Billed To:")
             c.setFont("Helvetica", 10)
@@ -375,8 +419,8 @@ class InvoiceWindow(QWidget):
             y -= 20
             c.setFont("Helvetica", 10)
             for idx, item in enumerate(self.invoice_items, start=1):
-                tax_amount = item['total'] * (item['gst'] / 100)
-                line_total = item['total'] + tax_amount
+                tax_amount_line = item['total'] * (item['gst'] / 100)
+                line_total = item['total'] + tax_amount_line
 
                 c.drawString(col_positions[0], y, str(idx))
                 c.drawString(col_positions[1], y, item['name'])
@@ -385,7 +429,7 @@ class InvoiceWindow(QWidget):
                 c.drawString(col_positions[4], y, item.get('hsn', ''))
                 c.drawString(col_positions[5], y, f"{item['price']:.2f}")
                 c.drawString(col_positions[6], y, f"{item['gst']}%")
-                c.drawString(col_positions[7], y, f"{tax_amount:.2f}")
+                c.drawString(col_positions[7], y, f"{tax_amount_line:.2f}")
                 c.drawString(col_positions[8], y, f"{line_total:.2f}")
                 y -= 15
 
@@ -440,11 +484,12 @@ class InvoiceWindow(QWidget):
     def generate_pdf_normal(self):
         """
         Generate a professional retail invoice:
-        - No tax calculations
+        - Includes Invoice No and Date in header
         - Clean layout with fallback logo
         """
         from reportlab.lib.units import mm
         import os
+        import datetime
 
         try:
             # 🏢 Load company profile
@@ -453,7 +498,8 @@ class InvoiceWindow(QWidget):
             gst_no = profile.get('gst_no', "27ABCDE1234F1Z5")
             address = profile.get('address', "123 Example Street, Test City")
             email = profile.get('email', "info@dummy.com")
-            phone = profile.get('phone1', "+91-9876543210")
+            phone1 = profile.get('phone1', "+91-9876543210")
+            phone2 = profile.get('phone2', "+91-9123456789")
             logo_path = profile.get('logo_path')
 
             # ✅ Fallback logo if not set or missing
@@ -467,8 +513,7 @@ class InvoiceWindow(QWidget):
                 print(f"✅ Using company logo: {logo_path}")
 
             # 🧑 Customer details
-            customer_name = self.customer_select.currentText().strip()
-            customer_phone = self.customer_phone_input.text().strip()
+            customer_name, customer_phone = self.get_customer_details()
 
             if not customer_name or not self.invoice_items:
                 QMessageBox.warning(
@@ -480,10 +525,10 @@ class InvoiceWindow(QWidget):
             # Save customer
             customer_id = save_customer(customer_name, customer_phone, "")
             invoice_no = get_next_invoice_number()
+            invoice_date = datetime.datetime.now().strftime("%d-%m-%Y %H:%M")
 
             # 🧮 Totals
             grand_total = sum(item['total'] for item in self.invoice_items)
-
             paid_amount = float(self.paid_amount_input.text().strip() or 0.0)
             balance = grand_total - paid_amount
             status = "Paid" if balance <= 0 else (
@@ -505,24 +550,34 @@ class InvoiceWindow(QWidget):
             c = canvas.Canvas(filename, pagesize=A4)
             width, height = A4
 
-            # --- Draw Header ---
-            try:
-                c.drawImage(
-                    logo_path, 30, height - 90,
-                    width=40 * mm, height=20 * mm,
-                    preserveAspectRatio=True, mask='auto'
-                )
-            except Exception as logo_err:
-                print(f"⚠️ Failed to load logo: {logo_err}")
+            # --- Header with Logo and Company Info ---
+            if os.path.exists(logo_path):
+                try:
+                    c.drawImage(
+                        logo_path, 30, height - 90,
+                        width=40 * mm, height=20 * mm,
+                        preserveAspectRatio=True, mask='auto'
+                    )
+                except Exception as logo_err:
+                    print(f"⚠️ Failed to load logo: {logo_err}")
 
             c.setFont("Helvetica-Bold", 16)
             c.drawString(120, height - 50, company_name)
-            c.setFont("Helvetica", 10)
+
+            c.setFont("Helvetica", 9)
             c.drawString(120, height - 65, address)
-            c.drawString(120, height - 80, f"Email: {email} | Phone: {phone}")
+            c.drawString(120, height - 78, f"GSTIN: {gst_no}")
+            c.drawString(120, height - 91, f"Phone: {phone1}, {phone2}")
+            c.drawString(120, height - 104, f"Email: {email}")
+
+            # --- Invoice Header Info (Invoice No and Date) ---
+            c.setFont("Helvetica-Bold", 11)
+            c.drawRightString(width - 40, height - 50,
+                              f"Invoice No: {invoice_no}")
+            c.drawRightString(width - 40, height - 65, f"Date: {invoice_date}")
 
             # --- Customer Info ---
-            y = height - 120
+            y = height - 130
             c.setFont("Helvetica-Bold", 11)
             c.drawString(30, y, "Billed To:")
             c.setFont("Helvetica", 10)

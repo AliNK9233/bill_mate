@@ -22,7 +22,7 @@ class JobWorkInvoiceWindow(QWidget):
         super().__init__()
         self.setWindowTitle("🧾 Job Work Invoice")
         self.setGeometry(200, 100, 950, 600)
-        self.setWindowIcon(QIcon("data/logos/rayani_logo.png"))
+        self.setWindowIcon(QIcon("data/logos/billmate_logo.png"))
         self.customer_lookup = {}
         self.setup_ui()
 
@@ -37,16 +37,33 @@ class JobWorkInvoiceWindow(QWidget):
 
         # 🧑 Customer Section
         customer_box = QHBoxLayout()
+
+        # Customer type dropdown
+        self.customer_type_select = QComboBox()
+        self.customer_type_select.addItems(
+            ["📋 Existing Customer", "🆕 Guest Customer"])
+        self.customer_type_select.currentIndexChanged.connect(
+            self.toggle_customer_mode)
+
+        # Existing Customer Dropdown
         self.customer_select = QComboBox()
-        self.customer_select.setEditable(True)
+        self.customer_select.setEditable(False)
         self.load_customers()
-        self.customer_select.setPlaceholderText("👤 Select or Add Customer")
+        self.customer_select.setPlaceholderText("👤 Select Existing Customer")
         self.customer_select.currentIndexChanged.connect(
             self.on_customer_selected)
 
+        # Guest Customer Inputs
+        self.guest_name_input = QLineEdit()
+        self.guest_name_input.setPlaceholderText("👤 Enter Customer Name")
+        self.guest_name_input.hide()  # Hidden initially
+
         self.customer_phone_input = QLineEdit()
         self.customer_phone_input.setPlaceholderText("📞 Phone Number")
+
+        customer_box.addWidget(self.customer_type_select, 1)
         customer_box.addWidget(self.customer_select, 3)
+        customer_box.addWidget(self.guest_name_input, 3)
         customer_box.addWidget(self.customer_phone_input, 2)
         layout.addLayout(customer_box)
 
@@ -89,6 +106,7 @@ class JobWorkInvoiceWindow(QWidget):
 
         self.payment_status_select = QComboBox()
         self.payment_status_select.addItems(["Unpaid", "Partial", "Paid"])
+
         payment_box.addWidget(self.paid_amount_input, 2)
         payment_box.addWidget(self.payment_method_select, 1)
         payment_box.addWidget(self.billing_type_select, 1)
@@ -96,7 +114,7 @@ class JobWorkInvoiceWindow(QWidget):
         layout.addLayout(payment_box)
 
         # 🧾 Summary Labels
-        self.total_label = QLabel("💰 Total: ₹0.00")
+        self.total_label = QLabel("💰 Subtotal: ₹0.00")
         self.total_label.setFont(QFont("Segoe UI", 14, QFont.Bold))
         layout.addWidget(self.total_label)
 
@@ -127,6 +145,48 @@ class JobWorkInvoiceWindow(QWidget):
         layout.addLayout(action_box)
 
         self.setLayout(layout)
+
+    def toggle_customer_mode(self):
+        """ Toggle between existing customer dropdown and guest customer inputs. """
+        if self.customer_type_select.currentText() == "🆕 Guest Customer":
+            self.customer_select.hide()
+            self.guest_name_input.show()
+        else:
+            self.guest_name_input.hide()
+            self.customer_select.show()
+
+    def load_customers(self):
+        """ Load customer names from DB. """
+        from models.invoice_model import get_all_customers
+        self.customer_lookup.clear()
+        self.customer_select.clear()
+        customers = get_all_customers()
+        for cust in customers:
+            name, phone, *_ = cust
+            display_text = f"{name} ({phone})"
+            self.customer_select.addItem(display_text)
+            self.customer_lookup[display_text] = (name, phone)
+        self.customer_select.addItem("➕ Add New Guest Customer")
+
+    def on_customer_selected(self):
+        """ Auto-fill phone for existing customers. """
+        selected = self.customer_select.currentText()
+        if selected == "➕ Add New Guest Customer":
+            self.customer_phone_input.clear()
+        elif selected in self.customer_lookup:
+            _, phone = self.customer_lookup[selected]
+            self.customer_phone_input.setText(phone)
+
+    def get_customer_details(self):
+        """ Return selected or entered customer details (name, phone). """
+        if self.customer_type_select.currentText() == "🆕 Guest Customer":
+            name = self.guest_name_input.text().strip()
+            phone = self.customer_phone_input.text().strip()
+        else:
+            selected_text = self.customer_select.currentText()
+            name = selected_text.split(" (")[0].strip()
+            phone, _ = self.customer_lookup.get(selected_text, ("", ""))
+        return name, phone
 
     def load_customers(self):
         """ Load customer names from DB. """
