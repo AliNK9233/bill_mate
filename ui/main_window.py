@@ -120,35 +120,40 @@ class MainWindow(QWidget):
         """
         Add Admin tabs dynamically after successful login.
         """
-        # 📊 Dashboard Tab
-        self.dashboard_tab = DashboardWindow()
-        self.tabs.addTab(self.dashboard_tab, "📊 Dashboard")
-        self.admin_tabs.append(self.dashboard_tab)
+        try:
+            # 📊 Dashboard Tab
+            self.dashboard_tab = DashboardWindow()
+            self.tabs.addTab(self.dashboard_tab, "📊 Dashboard")
+            self.admin_tabs.append(self.dashboard_tab)
 
-        # 📦 Admin Stock Tab
-        self.admin_stock_tab = AdminStockWindow()
-        self.tabs.addTab(self.admin_stock_tab, "📦 Admin Stock Management")
-        self.admin_tabs.append(self.admin_stock_tab)
+            # 📦 Admin Stock Tab
+            self.admin_stock_tab = AdminStockWindow()
+            self.tabs.addTab(self.admin_stock_tab, "📦 Admin Stock Management")
+            self.admin_tabs.append(self.admin_stock_tab)
 
-        # 💸 Sales Data Tab
-        self.sales_tab = SalesWindow()
-        self.tabs.addTab(self.sales_tab, "💸 Sales Data")
-        self.admin_tabs.append(self.sales_tab)
+            # 💸 Sales Data Tab
+            self.sales_tab = SalesWindow()
+            self.tabs.addTab(self.sales_tab, "💸 Sales Data")
+            self.admin_tabs.append(self.sales_tab)
 
-        # Job Work Tab
-        self.jobwork_tab = JobWorkWindow()
-        self.tabs.addTab(self.jobwork_tab, "🧾 Job Work Data")
-        self.admin_tabs.append(self.jobwork_tab)
+            # 🧾 Job Work Tab
+            self.jobwork_tab = JobWorkWindow()
+            self.tabs.addTab(self.jobwork_tab, "🧾 Job Work Data")
+            self.admin_tabs.append(self.jobwork_tab)
 
-        # 👥 Customer Management Tab
-        self.customer_tab = CustomerWindow()
-        self.tabs.addTab(self.customer_tab, "👥 Customer Management")
-        self.admin_tabs.append(self.customer_tab)
+            # 👥 Customer Management Tab
+            self.customer_tab = CustomerWindow()
+            self.tabs.addTab(self.customer_tab, "👥 Customer Management")
+            self.admin_tabs.append(self.customer_tab)
 
-        # 🏢 Company Profile Tab
-        self.profile_tab = CompanyProfileWindow()
-        self.tabs.addTab(self.profile_tab, "🏢 Company Profile")
-        self.admin_tabs.append(self.profile_tab)
+            # 🏢 Company Profile Tab
+            self.profile_tab = CompanyProfileWindow()
+            self.tabs.addTab(self.profile_tab, "🏢 Company Profile")
+            self.admin_tabs.append(self.profile_tab)
+
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error Loading Admin Tabs", f"❌ An error occurred:\n{e}")
 
     def logout_admin(self):
         """

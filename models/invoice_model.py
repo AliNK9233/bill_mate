@@ -38,9 +38,17 @@ def initialize_invoice_db():
             balance REAL,
             payment_method TEXT,
             status TEXT,
+            remarks TEXT DEFAULT '',  -- ✅ Added remarks column
             FOREIGN KEY (customer_id) REFERENCES customers(id)
         )
     ''')
+
+    # ✅ Add remarks column if missing
+    c.execute("PRAGMA table_info(invoices)")
+    columns = [col[1] for col in c.fetchall()]
+    if "remarks" not in columns:
+        c.execute("ALTER TABLE invoices ADD COLUMN remarks TEXT DEFAULT ''")
+        print("✅ Added 'remarks' column to invoices table.")
 
     # Invoice Items table
     c.execute('''

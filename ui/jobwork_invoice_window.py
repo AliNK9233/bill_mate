@@ -371,7 +371,7 @@ class JobWorkInvoiceWindow(QWidget):
         phone1 = profile.get('phone1', "+91-9876543210")
         phone2 = profile.get('phone2', "+91-9123456789")
         email = profile.get('email', "info@dummy.com")
-        logo_path = profile.get('logo_path') or "data/logos/billmate_logo.png"
+        logo_path = profile.get('logo_path') or "data/logos/c_logo.png"
 
         # 📅 Invoice Date
         invoice_date = datetime.datetime.now().strftime("%d-%m-%Y %H:%M")

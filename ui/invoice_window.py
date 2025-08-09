@@ -316,7 +316,7 @@ class InvoiceWindow(QWidget):
             logo_path = profile.get('logo_path')
 
             # ✅ Fallback logo if not set or missing
-            fallback_logo = os.path.abspath("data/logos/billmate_logo.png")
+            fallback_logo = os.path.abspath("data/logos/c_logo.png")
             if not logo_path or not os.path.exists(logo_path):
                 print(
                     f"⚠️ Company logo missing, using fallback: {fallback_logo}")
@@ -362,6 +362,14 @@ class InvoiceWindow(QWidget):
                 status=status,
                 items=self.invoice_items
             )
+
+            for it in self.invoice_items:
+                try:
+                    reduce_stock_quantity(it["code"], int(it["qty"]))
+                except Exception as e:
+                    print(f"⚠️ Failed to reduce stock for {it['code']}: {e}")
+
+            self.load_item_options()
 
             # 📄 Generate PDF
             filename = f"Invoice_{invoice_no}.pdf"
@@ -503,7 +511,7 @@ class InvoiceWindow(QWidget):
             logo_path = profile.get('logo_path')
 
             # ✅ Fallback logo if not set or missing
-            fallback_logo = os.path.abspath("data/logos/billmate_logo.png")
+            fallback_logo = os.path.abspath("data/logos/c_logo.png")
             if not logo_path or not os.path.exists(logo_path):
                 print(
                     f"⚠️ Company logo missing, using fallback: {fallback_logo}")
@@ -545,6 +553,13 @@ class InvoiceWindow(QWidget):
                 items=self.invoice_items
             )
 
+            for it in self.invoice_items:
+                try:
+                    reduce_stock_quantity(it["code"], int(it["qty"]))
+                except Exception as e:
+                    print(f"⚠️ Failed to reduce stock for {it['code']}: {e}")
+
+            self.load_item_options()
             # 📄 Generate PDF
             filename = f"Invoice_{invoice_no}.pdf"
             c = canvas.Canvas(filename, pagesize=A4)
