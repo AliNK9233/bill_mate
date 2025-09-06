@@ -4,8 +4,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QIcon
 from models.stock_model import (
-    get_consolidated_stock, add_stock_item,
-    add_stock_batch, get_latest_item_details_by_code
+    get_consolidated_stock, add_item, add_stock, get_item_by_item_code
 )
 
 
@@ -27,7 +26,7 @@ class GeneralStockWindow(QWidget):
             "font-size: 18px; font-weight: bold; margin: 10px 0;")
         layout.addWidget(title_label)
 
-        # Search, Add Stock, and Refresh Buttons
+        # Search, Add Stock, Refresh
         top_layout = QHBoxLayout()
 
         self.search_input = QLineEdit()
@@ -42,15 +41,14 @@ class GeneralStockWindow(QWidget):
 
         top_layout.addWidget(self.search_input)
         top_layout.addWidget(add_stock_btn)
-        top_layout.addWidget(refresh_btn)  # ✅ Added refresh button
+        top_layout.addWidget(refresh_btn)
         layout.addLayout(top_layout)
 
         # Stock Table
         self.stock_table = QTableWidget()
-        self.stock_table.setColumnCount(7)
+        self.stock_table.setColumnCount(5)
         self.stock_table.setHorizontalHeaderLabels([
-            "Item Name", "Item Code", "Unit", "HSN Code", "GST (%)",
-            "Selling Price (₹)", "Available Qty"
+            "Item Code", "Item Name", "Unit", "Selling Price (₹)", "Available Qty"
         ])
         layout.addWidget(self.stock_table)
 
@@ -58,47 +56,40 @@ class GeneralStockWindow(QWidget):
 
     def load_stock_data(self):
         self.stock_table.setRowCount(0)
-        stock_data = get_consolidated_stock()
-        self.full_stock_data = stock_data
+        self.full_stock_data = get_consolidated_stock()
 
-        for row_data in stock_data:
-            self.add_row_to_table(row_data)
+        for row in self.full_stock_data:
+            # row = (item_code, name, total_qty, uom, selling_price)
+            row_pos = self.stock_table.rowCount()
+            self.stock_table.insertRow(row_pos)
 
-    def add_row_to_table(self, row_data):
-        row_position = self.stock_table.rowCount()
-        self.stock_table.insertRow(row_position)
-
-        # Consolidated Stock Data
-        item_name = row_data[1]
-        item_code = row_data[2]
-        unit = row_data[3]
-        hsn_code = row_data[4]
-        gst_percent = row_data[5]
-        selling_price = row_data[6] if row_data[6] else 0.0
-        available_qty = row_data[7] if row_data[7] else 0
-
-        self.stock_table.setItem(row_position, 0, QTableWidgetItem(item_name))
-        self.stock_table.setItem(row_position, 1, QTableWidgetItem(item_code))
-        self.stock_table.setItem(row_position, 2, QTableWidgetItem(unit))
-        self.stock_table.setItem(row_position, 3, QTableWidgetItem(hsn_code))
-        self.stock_table.setItem(
-            row_position, 4, QTableWidgetItem(f"{gst_percent}%"))
-        self.stock_table.setItem(
-            row_position, 5, QTableWidgetItem(f"₹{selling_price:.2f}"))
-        self.stock_table.setItem(
-            row_position, 6, QTableWidgetItem(str(available_qty)))
+            self.stock_table.setItem(row_pos, 0, QTableWidgetItem(row[0]))
+            self.stock_table.setItem(row_pos, 1, QTableWidgetItem(row[1]))
+            self.stock_table.setItem(row_pos, 2, QTableWidgetItem(row[3]))
+            self.stock_table.setItem(
+                row_pos, 3, QTableWidgetItem(f"₹{row[4]:.2f}"))
+            self.stock_table.setItem(row_pos, 4, QTableWidgetItem(str(row[2])))
 
     def filter_stock_data(self):
         search_text = self.search_input.text().lower()
         self.stock_table.setRowCount(0)
 
-        for row_data in self.full_stock_data:
-            if search_text in row_data[1].lower() or search_text in row_data[2].lower():
-                self.add_row_to_table(row_data)
+        for row in self.full_stock_data:
+            if (search_text in row[0].lower()) or (search_text in row[1].lower()):
+                row_pos = self.stock_table.rowCount()
+                self.stock_table.insertRow(row_pos)
+
+                self.stock_table.setItem(row_pos, 0, QTableWidgetItem(row[0]))
+                self.stock_table.setItem(row_pos, 1, QTableWidgetItem(row[1]))
+                self.stock_table.setItem(row_pos, 2, QTableWidgetItem(row[3]))
+                self.stock_table.setItem(
+                    row_pos, 3, QTableWidgetItem(f"₹{row[4]:.2f}"))
+                self.stock_table.setItem(
+                    row_pos, 4, QTableWidgetItem(str(row[2])))
 
     def add_stock_popup(self):
         """
-        Popup to add new stock.
+        Popup for adding stock (either new item or new batch).
         """
         dialog = QDialog(self)
         dialog.setWindowTitle("➕ Add Stock Entry")
@@ -106,33 +97,27 @@ class GeneralStockWindow(QWidget):
 
         code_input = QLineEdit()
         name_input = QLineEdit()
-        unit_input = QLineEdit("Pcs")
-        hsn_input = QLineEdit()
-        gst_input = QLineEdit("18")  # Default GST
+        unit_input = QLineEdit("pcs")
         purchase_price_input = QLineEdit()
         selling_price_input = QLineEdit()
-        quantity_input = QLineEdit()
+        qty_input = QLineEdit()
+        vat_input = QLineEdit("5")
 
         def on_code_changed():
             code = code_input.text().strip().upper()
             if not code:
                 return
-
-            # Fetch item details if code exists
-            item = get_latest_item_details_by_code(code)
+            item = get_item_by_item_code(code)
             if item:
-                stock_id, name, code, unit, hsn_code, gst_percent, selling_price = item
-                name_input.setText(name)
-                unit_input.setText(unit)
-                hsn_input.setText(hsn_code)
-                gst_input.setText(str(gst_percent))
-                selling_price_input.setText(
-                    str(selling_price) if selling_price else "0.0")
+                # item = (id, item_code, name, uom, per_box_qty, vat, selling_price, remarks)
+                name_input.setText(item[2])
+                unit_input.setText(item[3])
+                vat_input.setText(str(item[5]))
+                selling_price_input.setText(str(item[6]))
             else:
                 name_input.clear()
-                unit_input.setText("Pcs")
-                hsn_input.clear()
-                gst_input.setText("18")
+                unit_input.setText("pcs")
+                vat_input.setText("5")
                 selling_price_input.setText("0.0")
 
         code_input.textChanged.connect(on_code_changed)
@@ -140,11 +125,10 @@ class GeneralStockWindow(QWidget):
         form_layout.addRow("Item Code:", code_input)
         form_layout.addRow("Item Name:", name_input)
         form_layout.addRow("Unit:", unit_input)
-        form_layout.addRow("HSN Code:", hsn_input)
-        form_layout.addRow("GST %:", gst_input)
-        form_layout.addRow("Purchase Price (₹):", purchase_price_input)
-        form_layout.addRow("Selling Price (₹):", selling_price_input)
-        form_layout.addRow("Quantity:", quantity_input)
+        form_layout.addRow("VAT %:", vat_input)
+        form_layout.addRow("Purchase Price:", purchase_price_input)
+        form_layout.addRow("Selling Price:", selling_price_input)
+        form_layout.addRow("Quantity:", qty_input)
 
         button_box = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -157,31 +141,30 @@ class GeneralStockWindow(QWidget):
             try:
                 code = code_input.text().strip().upper()
                 name = name_input.text().strip()
-                unit = unit_input.text().strip()
-                hsn_code = hsn_input.text().strip() or ""
-                gst_percent = float(gst_input.text().strip())
+                uom = unit_input.text().strip()
+                vat = float(vat_input.text().strip())
                 purchase_price = float(purchase_price_input.text().strip())
                 selling_price = float(selling_price_input.text().strip())
-                quantity = int(quantity_input.text().strip())
+                qty = float(qty_input.text().strip())
 
                 if not code or not name:
                     QMessageBox.warning(
-                        self, "Validation Error", "⚠️ Item Code and Name are required.")
+                        self, "Validation Error", "⚠️ Item Code and Name required.")
                     return
 
-                # Check if item code exists
-                existing_item = get_latest_item_details_by_code(code)
-                if not existing_item:
-                    stock_id = add_stock_item(
-                        name, code, unit, hsn_code, gst_percent)
-                else:
-                    stock_id = existing_item[0]
+                # If item does not exist, add it first
+                item = get_item_by_item_code(code)
+                if not item:
+                    add_item(code, name, uom, vat_percentage=vat,
+                             selling_price=selling_price)
 
-                add_stock_batch(stock_id, purchase_price,
-                                selling_price, quantity)
+                # Add stock batch
+                add_stock(code, purchase_price=purchase_price,
+                          quantity=qty, stock_type="purchase")
+
                 QMessageBox.information(
-                    self, "Success", f"✅ Stock entry added successfully!")
-                self.load_stock_data()  # Refresh table
+                    self, "Success", "✅ Stock entry added successfully.")
+                self.load_stock_data()
             except Exception as e:
                 QMessageBox.warning(
-                    self, "Error", f"❌ Failed to add stock entry: {e}")
+                    self, "Error", f"❌ Failed to add stock: {e}")

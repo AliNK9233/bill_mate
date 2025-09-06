@@ -4,15 +4,15 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt  # ✅ Needed for full-screen flags
-from ui import jobwork_invoice_window
+
 from ui.general_stock_window import GeneralStockWindow
 from ui.admin_stock_window import AdminStockWindow
-from ui.dashboard_window import DashboardWindow
+# from ui.dashboard_window import DashboardWindow
 from ui.sales_window import SalesWindow
 from ui.customer_window import CustomerWindow
 from ui.invoice_window import InvoiceWindow
 from ui.profile_window import CompanyProfileWindow
-from ui.jobwork_window import JobWorkWindow
+from ui.salesman_window import SalesmanWindow
 
 
 class MainWindow(QWidget):
@@ -37,9 +37,9 @@ class MainWindow(QWidget):
         self.invoice_tab = InvoiceWindow()
         self.tabs.addTab(self.invoice_tab, "🧾 Invoice")
 
-        # 🧾 Job Work Invoice Tab
-        self.jobwork_invoice_tab = jobwork_invoice_window.JobWorkInvoiceWindow()
-        self.tabs.addTab(self.jobwork_invoice_tab, "🧾 Job Work Invoice")
+        # salesman tab
+        self.salesman_tab = SalesmanWindow()
+        self.tabs.addTab(self.salesman_tab, "🧑‍💼 Salesman Management")
 
         # 📦 General Stock Tab (For Users)
         self.general_stock_tab = GeneralStockWindow()
@@ -121,25 +121,20 @@ class MainWindow(QWidget):
         Add Admin tabs dynamically after successful login.
         """
         try:
-            # 📊 Dashboard Tab
-            self.dashboard_tab = DashboardWindow()
-            self.tabs.addTab(self.dashboard_tab, "📊 Dashboard")
-            self.admin_tabs.append(self.dashboard_tab)
+            # # 📊 Dashboard Tab
+            # self.dashboard_tab = DashboardWindow()
+            # self.tabs.addTab(self.dashboard_tab, "📊 Dashboard")
+            # self.admin_tabs.append(self.dashboard_tab)
 
             # 📦 Admin Stock Tab
             self.admin_stock_tab = AdminStockWindow()
             self.tabs.addTab(self.admin_stock_tab, "📦 Admin Stock Management")
             self.admin_tabs.append(self.admin_stock_tab)
 
-            # 💸 Sales Data Tab
-            self.sales_tab = SalesWindow()
-            self.tabs.addTab(self.sales_tab, "💸 Sales Data")
-            self.admin_tabs.append(self.sales_tab)
-
-            # 🧾 Job Work Tab
-            self.jobwork_tab = JobWorkWindow()
-            self.tabs.addTab(self.jobwork_tab, "🧾 Job Work Data")
-            self.admin_tabs.append(self.jobwork_tab)
+            # # 💸 Sales Data Tab
+            # self.sales_tab = SalesWindow()
+            # self.tabs.addTab(self.sales_tab, "💸 Sales Data")
+            # self.admin_tabs.append(self.sales_tab)
 
             # 👥 Customer Management Tab
             self.customer_tab = CustomerWindow()

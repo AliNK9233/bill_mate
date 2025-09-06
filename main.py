@@ -4,16 +4,17 @@ from PyQt5.QtWidgets import QApplication, QMessageBox
 import sys
 import os
 import base64
+from PyQt5.QtGui import QFont
 
-from models.stock_model import initialize_db
-from models.jobwork_model import initialize_jobwork_db
-from models.invoice_model import initialize_invoice_db
-from models.company_model import initialize_company_profile_table
-initialize_company_profile_table()
+from models.stock_model import init_db as initialize_stock_db
+from models.invoice_model import init_invoice_db as initialize_invoice_db
+from models.customer_model import init_customer_db
+from models.salesman_model import init_salesman_db
+
 
 # 🕵️‍♂️ Encoded expiry date (base64 to obfuscate)
 # Original expiry: 2025-07-19
-encoded_expiry = "MjAyNS0wOC0zMQ=="  # base64 encoded
+encoded_expiry = "MjAyNi0wMy0zMQ=="  # base64 encoded
 
 # Decode expiry date
 try:
@@ -34,23 +35,19 @@ if datetime.now() > expiry_date:
     msg.setIcon(QMessageBox.Critical)
     msg.exec_()
     sys.exit()  # Stops execution
-
-# Initialize DB if needed
-if not os.path.exists("data/database.db"):
-    print("⚡ Creating new database...")
-    initialize_db()
-    initialize_invoice_db()
-    initialize_jobwork_db()
-
-else:
-    # Ensure tables exist even if DB file exists
-    initialize_invoice_db()
-    initialize_jobwork_db()
+app.setFont(QFont("Segoe UI", 14))
+# Initialize DB always
+print("⚡ Ensuring database is ready...")
+initialize_stock_db()
+initialize_invoice_db()
+init_customer_db()
+init_salesman_db()
 
 if __name__ == "__main__":
     # Load SAP Theme
-    with open("data/themes/theme.qss", "r") as f:
-        app.setStyleSheet(f.read())
+    if os.path.exists("data/themes/theme.qss"):
+        with open("data/themes/theme.qss", "r") as f:
+            app.setStyleSheet(f.read())
 
     window = MainWindow()
     window.show()
