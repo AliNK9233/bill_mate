@@ -24,6 +24,23 @@ from models.invoice_model import create_invoice, fetch_invoice
 from utils.pdf_helper import generate_invoice_pdf
 
 
+def on_view_invoice(self):
+    row = self.invoice_table.currentRow()
+    if row < 0:
+        QMessageBox.warning(self, "Select Invoice",
+                            "Please select an invoice to view.")
+        return
+    invoice_no = self.invoice_table.item(row, 0).text().strip()
+    try:
+        from utils.pdf_helper import generate_invoice_pdf
+        pdf_path = generate_invoice_pdf(invoice_no, open_after=True)
+        QMessageBox.information(
+            self, "PDF Opened", f"Invoice PDF generated and opened:\n{pdf_path}")
+    except Exception as e:
+        QMessageBox.warning(self, "Failed to open PDF",
+                            f"Could not generate/open PDF:\n{e}")
+
+
 def open_file_externally(path):
     """Open file with the system default viewer."""
     if not path or not os.path.exists(path):
@@ -428,6 +445,7 @@ class InvoiceWindow(QWidget):
         except Exception:
             discount_val = 0.0
 
+        # call create_invoice; handle DB busy/errors
         try:
             inv_no = create_invoice(bill_to, ship_to, payload, lpo_no="",
                                     discount=discount_val, customer_id=bill_to, salesman_id=salesman)
@@ -447,12 +465,21 @@ class InvoiceWindow(QWidget):
         self.refresh_invoice_table()
         self.load_item_options()
 
-        # generate PDF silently (no preview/view). If generation fails, we warn but UI won't try to open.
+        # generate PDF and open it (best-effort)
         try:
+            # local import to avoid breaking if utils missing at module import time
+            from utils.pdf_helper import generate_invoice_pdf
             pdf_path = generate_invoice_pdf(inv_no, open_after=False)
-            # keep generated path (but do not auto-open)
-            # if needed later you can open externally:
-            # open_file_externally(pdf_path)
-        except Exception:
-            # don't interrupt user flow for PDF errors
-            pass
+            if pdf_path and os.path.exists(pdf_path):
+                # save last path and open with system viewer
+                self._last_pdf_path = pdf_path
+                open_file_externally(pdf_path)
+                QMessageBox.information(self, "PDF Generated",
+                                        f"Invoice PDF generated and opened:\n{pdf_path}")
+            else:
+                QMessageBox.information(self, "PDF",
+                                        "Invoice saved but PDF was not created.")
+        except Exception as e:
+            # do not fail the save for PDF problems — notify user
+            QMessageBox.warning(
+                self, "PDF Error", f"Invoice saved but PDF generation/open failed: {e}")
