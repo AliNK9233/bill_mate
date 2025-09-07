@@ -23,9 +23,10 @@ def update_customer_in_db(customer_code, **kwargs):
     """
     Safe local helper to update allowed customer fields.
     Avoids import/signature mismatch with model helper.
-    Allowed: name, trn_no, email, phone, remarks, disabled
+    Allowed: name, trn_no, email, phone, remarks, disabled, address_line1, address_line2
     """
-    allowed = {"name", "trn_no", "email", "phone", "remarks", "disabled"}
+    allowed = {"name", "trn_no", "email", "phone", "remarks",
+               "disabled", "address_line1", "address_line2"}
     fields = []
     values = []
     for k, v in kwargs.items():
@@ -108,8 +109,8 @@ class CustomerWindow(QWidget):
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText(
-            "Search customers by name / phone / code")
-        self.search_input.setFixedWidth(320)
+            "Search customers by name / phone / code / address")
+        self.search_input.setFixedWidth(360)
         self.search_input.setMaximumHeight(28)
         self.search_input.textChanged.connect(self.search_customers)
 
@@ -155,9 +156,11 @@ class CustomerWindow(QWidget):
         left_layout.setSpacing(6)
 
         self.customer_table = QTableWidget()
-        self.customer_table.setColumnCount(6)
+        # Added Address Line 1 and Address Line 2 columns
+        self.customer_table.setColumnCount(8)
         self.customer_table.setHorizontalHeaderLabels(
-            ["Customer Code", "Name", "TRN", "Phone", "Remarks", "Disabled"]
+            ["Customer Code", "Name", "TRN", "Address Line 1",
+                "Address Line 2", "Phone", "Remarks", "Disabled"]
         )
         self.customer_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.customer_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -230,25 +233,58 @@ class CustomerWindow(QWidget):
     def populate_customer_table(self, data):
         self.customer_table.setRowCount(0)
         for row in data:
-            # expected tuple: (customer_code, name, trn_no, phone, remarks, disabled)
+            # flexible tuple handling to support older and newer schemas
+            # possible expected tuples (older): (customer_code, name, trn_no, phone, remarks, disabled)
+            # newer: (customer_code, name, trn_no, address_line1, address_line2, phone, remarks, disabled)
             r = self.customer_table.rowCount()
             self.customer_table.insertRow(r)
-            for c, value in enumerate(row):
-                if c == 5:
-                    # Disabled column - show Yes/No and style
-                    text = "Yes" if int(value) else "No"
-                    item = QTableWidgetItem(text)
-                    if int(value):
-                        # red text + light red background for entire row
-                        item.setForeground(QBrush(QColor(180, 30, 30)))
-                    self.customer_table.setItem(r, c, item)
-                else:
-                    self.customer_table.setItem(
-                        r, c, QTableWidgetItem(str(value)))
+
+            # safe getters
+            customer_code = row[0] if len(row) > 0 else ""
+            name = row[1] if len(row) > 1 else ""
+            trn_no = row[2] if len(row) > 2 else ""
+            # guess address fields
+            addr1 = ""
+            addr2 = ""
+            phone = ""
+            remarks = ""
+            disabled_val = 0
+
+            if len(row) >= 8:
+                # assume new layout
+                addr1 = row[3]
+                addr2 = row[4]
+                phone = row[5]
+                remarks = row[6]
+                disabled_val = int(row[7]) if row[7] is not None else 0
+            else:
+                # fallback to older layout
+                # try to find phone and remarks by scanning
+                if len(row) > 3:
+                    phone = row[3]
+                if len(row) > 4:
+                    remarks = row[4]
+                if len(row) > 5:
+                    try:
+                        disabled_val = int(row[5])
+                    except Exception:
+                        disabled_val = 0
+
+            values = [customer_code, name, trn_no,
+                      addr1, addr2, phone, remarks]
+            for c, value in enumerate(values):
+                self.customer_table.setItem(r, c, QTableWidgetItem(str(value)))
+
+            # Disabled column - show Yes/No and style
+            text = "Yes" if int(disabled_val) else "No"
+            item = QTableWidgetItem(text)
+            if int(disabled_val):
+                item.setForeground(QBrush(QColor(180, 30, 30)))
+            self.customer_table.setItem(r, 7, item)
+
             # if disabled -> paint row light red
             try:
-                disabled_val = int(row[5])
-                if disabled_val:
+                if int(disabled_val):
                     for col_i in range(self.customer_table.columnCount()):
                         cell = self.customer_table.item(r, col_i)
                         if cell:
@@ -263,8 +299,12 @@ class CustomerWindow(QWidget):
             return
         filtered = []
         for row in self.customers_data:
-            combined = " ".join(str(x).lower()
-                                for x in (row[0], row[1], row[3]))
+            # build a combined string using available fields safely
+            parts = []
+            for i in (0, 1, 2, 3, 4):
+                if len(row) > i and row[i] is not None:
+                    parts.append(str(row[i]).lower())
+            combined = " ".join(parts)
             if q in combined:
                 filtered.append(row)
         self.populate_customer_table(filtered)
@@ -278,10 +318,14 @@ class CustomerWindow(QWidget):
         form = QFormLayout(dialog)
         name_input = QLineEdit()
         trn_input = QLineEdit()
+        addr1_input = QLineEdit()
+        addr2_input = QLineEdit()
         phone_input = QLineEdit()
         remarks_input = QLineEdit()
         form.addRow("Name:", name_input)
         form.addRow("TRN:", trn_input)
+        form.addRow("Address Line 1:", addr1_input)
+        form.addRow("Address Line 2:", addr2_input)
         form.addRow("Phone:", phone_input)
         form.addRow("Remarks:", remarks_input)
         buttons = QDialogButtonBox(
@@ -291,8 +335,25 @@ class CustomerWindow(QWidget):
         buttons.rejected.connect(dialog.reject)
         if dialog.exec_() == QDialog.Accepted:
             try:
-                code = add_customer(name_input.text().strip(), trn_input.text().strip(
-                ), phone=phone_input.text().strip(), remarks=remarks_input.text().strip())
+                # attempt to call model add_customer with address kwargs (if model supports)
+                try:
+                    code = add_customer(
+                        name_input.text().strip(),
+                        trn_input.text().strip(),
+                        phone=phone_input.text().strip(),
+                        remarks=remarks_input.text().strip(),
+                        address_line1=addr1_input.text().strip(),
+                        address_line2=addr2_input.text().strip()
+                    )
+                except TypeError:
+                    # fallback to older signature without address
+                    code = add_customer(
+                        name_input.text().strip(),
+                        trn_input.text().strip(),
+                        phone=phone_input.text().strip(),
+                        remarks=remarks_input.text().strip()
+                    )
+
                 QMessageBox.information(
                     self, "Success", f"Customer {code} added.")
                 self.load_customers()
@@ -320,6 +381,8 @@ class CustomerWindow(QWidget):
         customer_code = cust.get("customer_code") or code
         name = cust.get("name", "")
         trn = cust.get("trn_no", "")
+        addr1 = cust.get("address_line1", "")
+        addr2 = cust.get("address_line2", "")
         email = cust.get("email", "")
         phone = cust.get("phone", "")
         remarks = cust.get("remarks", "")
@@ -330,6 +393,8 @@ class CustomerWindow(QWidget):
         form = QFormLayout(dialog)
         name_input = QLineEdit(name)
         trn_input = QLineEdit(trn)
+        addr1_input = QLineEdit(addr1)
+        addr2_input = QLineEdit(addr2)
         phone_input = QLineEdit(phone)
         remarks_input = QLineEdit(remarks)
         disabled_cb = QCheckBox("Disabled")
@@ -337,6 +402,8 @@ class CustomerWindow(QWidget):
         # company name should be editable earlier? (we keep full edit)
         form.addRow("Name:", name_input)
         form.addRow("TRN:", trn_input)
+        form.addRow("Address Line 1:", addr1_input)
+        form.addRow("Address Line 2:", addr2_input)
         form.addRow("Phone:", phone_input)
         form.addRow("Remarks:", remarks_input)
         form.addRow(disabled_cb)
@@ -356,6 +423,8 @@ class CustomerWindow(QWidget):
                                 trn_no=trn_input.text().strip(),
                                 phone=phone_input.text().strip(),
                                 remarks=remarks_input.text().strip(),
+                                address_line1=addr1_input.text().strip(),
+                                address_line2=addr2_input.text().strip(),
                                 disabled=new_disabled)
                 # cascade disable if toggled on now and was off before
                 if new_disabled == 1 and disabled == 0:
@@ -605,7 +674,7 @@ class CustomerWindow(QWidget):
             ws = wb.active
             ws.title = "Customers_Outlets"
             headers = [
-                "Customer Code", "Customer Name", "Customer TRN", "Customer Phone", "Customer Remarks", "Customer Disabled",
+                "Customer Code", "Customer Name", "Customer TRN", "Customer Address Line 1", "Customer Address Line 2", "Customer Phone", "Customer Remarks", "Customer Disabled",
                 "Outlet ID", "Outlet Code", "Outlet Name", "Outlet Address", "Outlet City", "Outlet Phone", "Outlet Remarks", "Outlet Disabled"
             ]
             ws.append(headers)
@@ -616,15 +685,23 @@ class CustomerWindow(QWidget):
                 all_customers = get_all_customers()
 
             for cust in all_customers:
-                # cust expected: (customer_code, name, trn_no, phone, remarks, disabled)
-                cust_code, cust_name, cust_trn, cust_phone, cust_remarks, cust_disabled = cust
+                # flexible unpacking similar to populate
+                cust_code = cust[0] if len(cust) > 0 else ""
+                cust_name = cust[1] if len(cust) > 1 else ""
+                cust_trn = cust[2] if len(cust) > 2 else ""
+                cust_addr1 = cust[3] if len(cust) > 3 else ""
+                cust_addr2 = cust[4] if len(cust) > 4 else ""
+                cust_phone = cust[5] if len(cust) > 5 else ""
+                cust_remarks = cust[6] if len(cust) > 6 else ""
+                cust_disabled = cust[7] if len(cust) > 7 else 0
+
                 try:
                     outlets = get_outlets(cust_code, include_disabled=True)
                 except TypeError:
                     outlets = get_outlets(cust_code)
 
                 if not outlets:
-                    ws.append([cust_code, cust_name, cust_trn, cust_phone,
+                    ws.append([cust_code, cust_name, cust_trn, cust_addr1, cust_addr2, cust_phone,
                               cust_remarks, ("Yes" if cust_disabled else "No")] + [""] * 8)
                 else:
                     for out in outlets:
@@ -638,7 +715,7 @@ class CustomerWindow(QWidget):
                         out_remarks = out[10] if len(out) > 10 else ""
                         out_disabled = out[11] if len(out) > 11 else 0
                         ws.append([
-                            cust_code, cust_name, cust_trn, cust_phone, cust_remarks, (
+                            cust_code, cust_name, cust_trn, cust_addr1, cust_addr2, cust_phone, cust_remarks, (
                                 "Yes" if cust_disabled else "No"),
                             out_id, out_code, out_name, addr, out_city, out_phone, out_remarks, (
                                 "Yes" if out_disabled else "No")

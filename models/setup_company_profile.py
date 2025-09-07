@@ -6,7 +6,7 @@ from datetime import datetime
 DB_FILE = "data/database.db"
 
 DEFAULT_PROFILE = {
-    "company_name": "RIZQ AL EZZAT FOODSTUFF TRADING EST.",
+    "company_name": "RIZQ AL EZZAT TRADING",
     "trn_no": "TRN123456",                # TRN / GST number
     "address_line1": "Address line 1",
     "address_line2": "P.O. Box : 1072",

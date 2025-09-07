@@ -1,8 +1,8 @@
 # models/stock_model.py
+import datetime
 import sqlite3
 import os
 import time
-from datetime import datetime
 from typing import List, Tuple, Dict, Optional
 from contextlib import closing
 
@@ -43,7 +43,7 @@ def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
-    # Create item_master (if missing). include common fields: hsn_code, low_stock_level
+    # Create item_master
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS item_master (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,9 +53,10 @@ def init_db():
         per_box_qty INTEGER DEFAULT 1,
         vat_percentage REAL DEFAULT 0,
         selling_price REAL DEFAULT 0,
-        hsn_code TEXT DEFAULT '',
         remarks TEXT DEFAULT '',
-        low_stock_level INTEGER DEFAULT 0
+        low_stock_level INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
     )
     """)
 
@@ -79,78 +80,43 @@ def init_db():
     conn.commit()
     conn.close()
 
-    # Ensure any missing columns for older DBs
-    ensure_columns()
-
-
-def ensure_columns():
-    """
-    Adds missing columns to item_master or stock if older DB lacks them.
-    Safe to call multiple times.
-    """
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-
-    # item_master columns we expect
-    expected_item_cols = {
-        "hsn_code": "TEXT DEFAULT ''",
-        "remarks": "TEXT DEFAULT ''",
-        "low_stock_level": "INTEGER DEFAULT 0"
-    }
-    cursor.execute("PRAGMA table_info(item_master)")
-    existing = {r[1] for r in cursor.fetchall()}
-    for col, coldef in expected_item_cols.items():
-        if col not in existing:
-            cursor.execute(
-                f"ALTER TABLE item_master ADD COLUMN {col} {coldef}")
-
-    conn.commit()
-    conn.close()
-
 
 # ------------------------
 # Item master helpers
 # ------------------------
-def add_item(item_code: str,
-             name: str,
-             uom: str,
-             per_box_qty: int = 1,
-             vat_percentage: float = 0.0,
-             selling_price: float = 0.0,
-             hsn_code: str = "",
-             remarks: str = "",
-             low_stock_level: int = 0) -> int:
+def add_item(item_code, name, uom="pcs", per_box_qty=1, vat_percentage=0.0,
+             selling_price=0.0, remarks="", low_stock_level=0):
     """
-    Add a new item to item_master. If the item_code already exists,
-    this function does NOT raise — it will ignore the insert.
-    Returns the item id (new or existing).
+    Insert a master item row into item_master. Returns the new row id.
     """
     conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
+    cur = conn.cursor()
 
-    # Try insert; if exists, fetch id
-    cursor.execute("""
-    INSERT OR IGNORE INTO item_master
-      (item_code, name, uom, per_box_qty, vat_percentage, selling_price, hsn_code, remarks, low_stock_level)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (item_code, name, uom, per_box_qty, vat_percentage, selling_price, hsn_code, remarks, low_stock_level))
+    now = datetime.datetime.now().isoformat(timespec="seconds")
+
+    cur.execute("""
+    INSERT INTO item_master (
+        item_code, name, uom, per_box_qty, vat_percentage,
+        selling_price, remarks, low_stock_level, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (item_code, name, uom, int(per_box_qty),
+          float(vat_percentage), float(selling_price),
+          remarks, int(low_stock_level), now, now))
+
     conn.commit()
-
-    cursor.execute(
-        "SELECT id FROM item_master WHERE item_code = ?", (item_code,))
-    row = cursor.fetchone()
+    rowid = cur.lastrowid
     conn.close()
-    return row[0]
+    return rowid
 
 
 def update_item(item_code: str, **kwargs):
     """
     Update fields on item_master. Allowed keys:
-      name, uom, per_box_qty, vat_percentage, selling_price, hsn_code, remarks, low_stock_level
+      name, uom, per_box_qty, vat_percentage, selling_price, remarks, low_stock_level
     Example: update_item("ITEM001", selling_price=12.5, low_stock_level=20)
     """
     allowed = {"name", "uom", "per_box_qty", "vat_percentage",
-               "selling_price", "hsn_code", "remarks", "low_stock_level"}
+               "selling_price", "remarks", "low_stock_level"}
     updates = []
     values = []
     for k, v in kwargs.items():
@@ -231,7 +197,7 @@ def add_stock(item_code: str,
     item_id = row[0]
 
     batch_no = get_next_batch_no(item_id)
-    now = datetime.now().isoformat(timespec="seconds")
+    now = datetime.datetime.now().isoformat(timespec="seconds")
     cursor.execute("""
     INSERT INTO stock (item_id, batch_no, purchase_price, expiry_date, stock_type, quantity, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -316,7 +282,7 @@ def _reduce_using_cursor(cursor: sqlite3.Cursor, item_code: str, qty_to_reduce: 
         available = float(qty or 0)
         deduct = min(available, remaining)
         new_qty = round(available - deduct, 6)
-        now = datetime.now().isoformat(timespec="seconds")
+        now = datetime.datetime.now().isoformat(timespec="seconds")
         cursor.execute(
             "UPDATE stock SET quantity = ?, updated_at = ? WHERE id = ?", (new_qty, now, stock_id))
         remaining -= deduct
@@ -330,18 +296,51 @@ def reduce_stock_quantity(item_code: str, qty_to_reduce: float, conn: Optional[s
     """
     Reduce stock using FIFO (oldest batch first).
     If `conn` is provided, use it (so callers can run this inside their transaction).
-    Otherwise open a short-lived connection (backwards-compatible).
+    Returns: dict { 'remaining_qty': float, 'low_stock_level': int, 'fell_below': bool }
     Raises ValueError if not enough stock.
     """
     qty_to_reduce = float(qty_to_reduce or 0)
     if qty_to_reduce <= 0:
-        return
+        # nothing to do — return current totals
+        with sqlite3.connect(DB_FILE) as tmpc:
+            cur = tmpc.cursor()
+            cur.execute("""
+                SELECT IFNULL(SUM(s.quantity),0)
+                FROM stock s
+                JOIN item_master im ON im.id = s.item_id
+                WHERE im.item_code = ?
+            """, (item_code,))
+            rem = float(cur.fetchone()[0] or 0)
+
+            cur.execute(
+                "SELECT IFNULL(low_stock_level,0) FROM item_master WHERE item_code = ?", (item_code,))
+            low_row = cur.fetchone()
+            low = int(low_row[0] or 0) if low_row else 0
+
+            fell = (low > 0 and rem < low)
+            return {'remaining_qty': rem, 'low_stock_level': low, 'fell_below': fell}
+
+    def _post_stats(cursor_local):
+        # compute remaining and low level after commit
+        cursor_local.execute("""
+            SELECT IFNULL(SUM(s.quantity),0)
+            FROM stock s
+            JOIN item_master im ON im.id = s.item_id
+            WHERE im.item_code = ?
+        """, (item_code,))
+        remaining = float(cursor_local.fetchone()[0] or 0)
+        cursor_local.execute(
+            "SELECT IFNULL(low_stock_level,0) FROM item_master WHERE item_code = ?", (item_code,))
+        low_row = cursor_local.fetchone()
+        low = int(low_row[0] or 0) if low_row else 0
+        fell = (low > 0 and remaining < low)
+        return {'remaining_qty': remaining, 'low_stock_level': low, 'fell_below': fell}
 
     # If caller passed in an active connection, use it (no commit/close here).
     if conn is not None:
         cursor = conn.cursor()
         _reduce_using_cursor(cursor, item_code, qty_to_reduce)
-        return
+        return _post_stats(cursor)
 
     # Otherwise, use our own short-lived connection/transaction
     with closing(_connect()) as local_conn:
@@ -350,6 +349,7 @@ def reduce_stock_quantity(item_code: str, qty_to_reduce: float, conn: Optional[s
             local_conn.execute("BEGIN")
             _reduce_using_cursor(cur, item_code, qty_to_reduce)
             local_conn.commit()
+            return _post_stats(cur)
         except Exception:
             try:
                 local_conn.rollback()
@@ -357,10 +357,11 @@ def reduce_stock_quantity(item_code: str, qty_to_reduce: float, conn: Optional[s
                 pass
             raise
 
-
 # ------------------------
 # Consolidation / queries
 # ------------------------
+
+
 def get_consolidated_stock() -> List[Tuple]:
     """
     Returns list of tuples:
@@ -416,13 +417,13 @@ def get_low_stock_items(threshold: Optional[float] = None) -> List[Tuple]:
 def get_latest_item_details_by_code(item_code: str) -> Optional[Tuple]:
     """
     Return a tuple useful for UI selection boxes. Format:
-    (item_id, name, item_code, uom, hsn_code, vat_percentage, selling_price, total_qty)
+    (item_id, name, item_code, uom,  vat_percentage, selling_price, total_qty)
     Returns None if item not found.
     """
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("""
-    SELECT im.id, im.name, im.item_code, im.uom, im.hsn_code, im.vat_percentage, im.selling_price,
+    SELECT im.id, im.name, im.item_code, im.uom,  im.vat_percentage, im.selling_price,
            IFNULL((SELECT SUM(s.quantity) FROM stock s WHERE s.item_id = im.id), 0)
     FROM item_master im
     WHERE im.item_code = ?
@@ -432,10 +433,10 @@ def get_latest_item_details_by_code(item_code: str) -> Optional[Tuple]:
     return row
 
 
-def add_stock_item(name: str, item_code: str, uom: str, hsn_code: str = "", vat_percentage: float = 0.0, selling_price: float = 0.0) -> int:
+def add_stock_item(name: str, item_code: str, uom: str,  vat_percentage: float = 0.0, selling_price: float = 0.0) -> int:
     """
     UI-friendly wrapper that creates an item_master entry if missing and returns its id.
     """
     item_id = add_item(item_code=item_code, name=name, uom=uom, per_box_qty=1,
-                       vat_percentage=vat_percentage, selling_price=selling_price, hsn_code=hsn_code)
+                       vat_percentage=vat_percentage, selling_price=selling_price, )
     return item_id

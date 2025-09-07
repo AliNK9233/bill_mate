@@ -2,10 +2,10 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QPushButton,
     QLineEdit, QHBoxLayout, QDialog, QFormLayout, QDialogButtonBox, QMessageBox,
-    QSplitter, QSizePolicy, QInputDialog
+    QSplitter, QSizePolicy, QInputDialog, QDateEdit
 )
 from PyQt5.QtGui import QIcon, QColor, QBrush
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QDate
 from models.stock_model import (
     get_consolidated_stock, get_all_batches, update_item, add_stock, add_item,
     reduce_stock_quantity, init_db, get_item_by_item_code
@@ -13,7 +13,114 @@ from models.stock_model import (
 from openpyxl import Workbook
 import sqlite3
 import datetime
-import os
+
+
+def _parse_date_to_dateobj(s):
+    """
+    Try common date formats -> return a datetime.date object or None.
+    Accepts: 'YYYY-MM-DD', 'YYYY-MM-DD HH:MM:SS', ISO variants, 'DD-MMM-YYYY', etc.
+    If s is already a date/datetime, returns a date object.
+    """
+    if not s:
+        return None
+
+    # If already a date / datetime, return a date
+    if isinstance(s, (datetime.date, datetime.datetime)):
+        return s.date() if isinstance(s, datetime.datetime) else s
+
+    s = str(s).strip()
+
+    # Common formats to try (add any other patterns your DB uses)
+    fmts = (
+        "%Y-%m-%d",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%d-%b-%Y",
+        "%d-%b-%Y %I:%M %p",
+    )
+    for f in fmts:
+        try:
+            return datetime.datetime.strptime(s, f).date()
+        except Exception:
+            pass
+
+    # final fallback: try date.fromisoformat()
+    try:
+        return datetime.date.fromisoformat(s)
+    except Exception:
+        return None
+
+
+def _format_display_date_for_table(dt):
+    """
+    Return user-friendly display for an expiry (date only).
+    Accepts a date/datetime or a parseable string.
+    Returns '' when no valid date.
+    """
+    if not dt:
+        return ""
+
+    if isinstance(dt, str):
+        dt = _parse_date_to_dateobj(dt)
+    if not dt:
+        return ""
+
+    # e.g. '05-Aug-2025'
+    return dt.strftime("%d-%b-%Y")
+
+
+def _format_created_at_display(s):
+    """
+    Format created_at (which may include time) as 'DD-MMM-YYYY hh:mm AM/PM'.
+    Accepts:
+      - a datetime or date object
+      - various strings (ISO, 'YYYY-MM-DD HH:MM:SS', with optional fractional seconds or timezone)
+    Returns the original input as string when parsing fails.
+    """
+    if not s:
+        return ""
+
+    # If already a datetime
+    if isinstance(s, datetime.datetime):
+        return s.strftime("%d-%b-%Y %I:%M %p")
+    # If it's a date (no time), combine with midnight
+    if isinstance(s, datetime.date):
+        dt = datetime.datetime.combine(s, datetime.time.min)
+        return dt.strftime("%d-%b-%Y %I:%M %p")
+
+    s = str(s).strip()
+
+    # Try several datetime formats (including timezone-aware)
+    fmts = (
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%d-%b-%Y %I:%M %p",
+        "%d-%b-%Y",
+    )
+    for f in fmts:
+        try:
+            dt = datetime.datetime.strptime(s, f)
+            return dt.strftime("%d-%b-%Y %I:%M %p")
+        except Exception:
+            pass
+
+    # As a last attempt, if the string looks like an ISO date, try fromisoformat()
+    try:
+        dt = datetime.datetime.fromisoformat(s)
+        return dt.strftime("%d-%b-%Y %I:%M %p")
+    except Exception:
+        pass
+
+    # give up and return original
+    return s
 
 
 class AdminStockWindow(QWidget):
@@ -82,6 +189,11 @@ class AdminStockWindow(QWidget):
         self.low_stock_btn.setFixedHeight(28)
         self.low_stock_btn.clicked.connect(self.toggle_low_stock_view)
 
+        # New: Refresh All (refresh master and batches)
+        self.refresh_all_btn = QPushButton("🔄 Refresh All")
+        self.refresh_all_btn.setFixedHeight(28)
+        self.refresh_all_btn.clicked.connect(self.refresh_all)
+
         # pack toolbar items on the right
         top_row.addWidget(self.search_input, 0, Qt.AlignRight)
         top_row.addWidget(self.add_item_btn)
@@ -90,6 +202,7 @@ class AdminStockWindow(QWidget):
         top_row.addWidget(self.export_master_btn)
         top_row.addWidget(self.export_batch_btn)
         top_row.addWidget(self.low_stock_btn)
+        top_row.addWidget(self.refresh_all_btn)
 
         layout.addLayout(top_row)
 
@@ -253,11 +366,6 @@ class AdminStockWindow(QWidget):
         self.load_batches_for_item(item_code)
 
     def load_batches_for_item(self, item_code):
-        """
-        Loads batches for an item_code into right-side batch_table.
-        get_all_batches(item_code) returns tuples:
-        (id, batch_no, purchase_price, quantity, expiry_date, stock_type, created_at, updated_at)
-        """
         try:
             self.batch_table.setRowCount(0)
             self.batches = get_all_batches(item_code)
@@ -267,24 +375,30 @@ class AdminStockWindow(QWidget):
                 batch_no = b[1]
                 purchase_price = b[2]
                 qty = b[3]
-                expiry = b[4] or ""
+                expiry_raw = b[4] or ""
                 stype = b[5]
-                created = b[6] or ""
+                created_raw = b[6] or ""
+
+                expiry_display = _format_display_date_for_table(expiry_raw)
+                created_display = _format_created_at_display(created_raw)
 
                 r = self.batch_table.rowCount()
                 self.batch_table.insertRow(r)
                 self.batch_table.setItem(r, 0, QTableWidgetItem(str(b_id)))
                 self.batch_table.setItem(r, 1, QTableWidgetItem(str(batch_no)))
                 self.batch_table.setItem(r, 2, QTableWidgetItem(
-                    f"{float(purchase_price):.2f}"))
+                    f"{float(purchase_price):.2f}" if purchase_price is not None else "0.00"))
                 qty_item = QTableWidgetItem(f"{float(qty):.2f}")
-                # highlight qty if zero or very low
                 if float(qty) <= 0:
                     qty_item.setBackground(QBrush(QColor(255, 180, 180)))
                 self.batch_table.setItem(r, 3, qty_item)
-                self.batch_table.setItem(r, 4, QTableWidgetItem(str(expiry)))
+                # show formatted expiry
+                self.batch_table.setItem(
+                    r, 4, QTableWidgetItem(expiry_display))
                 self.batch_table.setItem(r, 5, QTableWidgetItem(str(stype)))
-                self.batch_table.setItem(r, 6, QTableWidgetItem(str(created)))
+                # show nicely formatted created datetime
+                self.batch_table.setItem(
+                    r, 6, QTableWidgetItem(created_display))
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to load batches: {e}")
 
@@ -294,6 +408,15 @@ class AdminStockWindow(QWidget):
             return
         item_code = self.master_table.item(cur, 0).text()
         self.load_batches_for_item(item_code)
+
+    def refresh_all(self):
+        """Refresh both master and currently visible batches."""
+        self.load_master_table()
+        # refresh batches for currently selected master row
+        cur = self.master_table.currentRow()
+        if cur >= 0:
+            self.load_batches_for_item(
+                self.master_table.item(cur, 0).text())
 
     # -------------------------
     # Actions: Add / Edit master/batch
@@ -309,7 +432,6 @@ class AdminStockWindow(QWidget):
         per_box_input = QLineEdit("1")
         vat_input = QLineEdit("5")
         sell_input = QLineEdit("0.00")
-        hsn_input = QLineEdit("")
         low_input = QLineEdit("0")
         remarks_input = QLineEdit("")
 
@@ -319,7 +441,7 @@ class AdminStockWindow(QWidget):
         form.addRow("Per Box Qty:", per_box_input)
         form.addRow("VAT %:", vat_input)
         form.addRow("Selling Price:", sell_input)
-        form.addRow("HSN Code:", hsn_input)
+        # HSN removed per request
         form.addRow("Low Stock Level:", low_input)
         form.addRow("Remarks:", remarks_input)
 
@@ -344,7 +466,6 @@ class AdminStockWindow(QWidget):
                 sell = float(sell_input.text().strip() or 0)
             except Exception:
                 sell = 0.0
-            hsn = hsn_input.text().strip()
             try:
                 lowlvl = int(low_input.text().strip() or 0)
             except Exception:
@@ -358,7 +479,7 @@ class AdminStockWindow(QWidget):
 
             try:
                 item_id = add_item(item_code=code, name=name, uom=uom, per_box_qty=per_box,
-                                   vat_percentage=vat, selling_price=sell, hsn_code=hsn, remarks=remarks, low_stock_level=lowlvl)
+                                   vat_percentage=vat, selling_price=sell, remarks=remarks, low_stock_level=lowlvl)
                 QMessageBox.information(
                     self, "Added", f"✅ Item {code} added (id={item_id}).")
                 self.load_master_table()
@@ -379,24 +500,61 @@ class AdminStockWindow(QWidget):
                                 "⚠️ Please select an item to edit.")
             return
         item_code = self.master_table.item(row, 0).text()
-        name = self.master_table.item(row, 1).text()
-        uom = self.master_table.item(row, 2).text()
-        selling_price = self.master_table.item(row, 3).text()
-        low_level = self.master_table.item(row, 5).text()
+
+        # fetch full item from model to get all editable columns
+        try:
+            item = get_item_by_item_code(item_code)
+            # expected dict or tuple; we'll support both
+            if isinstance(item, dict):
+                item_obj = item
+            else:
+                # assume tuple: (id, item_code, name, uom, per_box_qty, vat_percentage, selling_price, remarks, low_stock_level, ...)
+                item_obj = {
+                    "item_code": item[1],
+                    "name": item[2] if len(item) > 2 else "",
+                    "uom": item[3] if len(item) > 3 else "",
+                    "per_box_qty": item[4] if len(item) > 4 else 1,
+                    "vat_percentage": item[5] if len(item) > 5 else 0,
+                    "selling_price": item[6] if len(item) > 6 else 0,
+                    "remarks": item[7] if len(item) > 7 else "",
+                    "low_stock_level": item[8] if len(item) > 8 else 0
+                }
+        except Exception:
+            # fallback: use limited data from table
+            item_obj = {
+                "item_code": item_code,
+                "name": self.master_table.item(row, 1).text(),
+                "uom": self.master_table.item(row, 2).text(),
+                "selling_price": float(self.master_table.item(row, 3).text()),
+                "low_stock_level": int(self.master_table.item(row, 5).text()),
+                "per_box_qty": 1,
+                "vat_percentage": 0,
+                "remarks": ""
+            }
 
         dialog = QDialog(self)
         dialog.setWindowTitle("✏️ Edit Master Data")
         form = QFormLayout(dialog)
 
-        name_input = QLineEdit(name)
-        uom_input = QLineEdit(uom)
-        sell_input = QLineEdit(selling_price)
-        low_input = QLineEdit(low_level)
+        # show item code but make it read-only
+        code_input = QLineEdit(item_obj.get("item_code", ""))
+        code_input.setReadOnly(True)
+        name_input = QLineEdit(item_obj.get("name", ""))
+        uom_input = QLineEdit(item_obj.get("uom", ""))
+        per_box_input = QLineEdit(str(item_obj.get("per_box_qty", 1)))
+        vat_input = QLineEdit(str(item_obj.get("vat_percentage", 0)))
+        sell_input = QLineEdit(str(item_obj.get("selling_price", 0)))
+        low_input = QLineEdit(str(item_obj.get("low_stock_level", 0)))
+        remarks_input = QLineEdit(str(item_obj.get("remarks", "")))
 
+        form.addRow("Item Code (read-only):", code_input)
         form.addRow("Item Name:", name_input)
         form.addRow("Unit (UOM):", uom_input)
+        form.addRow("Per Box Qty:", per_box_input)
+        form.addRow("VAT %:", vat_input)
         form.addRow("Selling Price:", sell_input)
         form.addRow("Low Stock Level:", low_input)
+        form.addRow("Remarks:", remarks_input)
 
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         form.addWidget(btns)
@@ -408,9 +566,13 @@ class AdminStockWindow(QWidget):
                 update_item(item_code,
                             name=name_input.text().strip(),
                             uom=uom_input.text().strip(),
+                            per_box_qty=int(per_box_input.text().strip() or 1),
+                            vat_percentage=float(
+                                vat_input.text().strip() or 0),
                             selling_price=float(
                                 sell_input.text().strip() or 0),
-                            low_stock_level=int(low_input.text().strip() or 0))
+                            low_stock_level=int(low_input.text().strip() or 0),
+                            remarks=remarks_input.text().strip())
                 QMessageBox.information(
                     self, "Success", "✅ Master data updated.")
                 self.load_master_table()
@@ -418,10 +580,6 @@ class AdminStockWindow(QWidget):
                 QMessageBox.warning(self, "Error", f"❌ Failed to update: {e}")
 
     def edit_batch_data(self):
-        """
-        Edit the selected batch's purchase price and quantity.
-        We update stock table directly (safe small operation) using add_stock / SQL update.
-        """
         row = self.batch_table.currentRow()
         if row < 0:
             QMessageBox.warning(self, "Select Batch",
@@ -432,7 +590,14 @@ class AdminStockWindow(QWidget):
         batch_no = self.batch_table.item(row, 1).text()
         purchase_price = self.batch_table.item(row, 2).text()
         qty = self.batch_table.item(row, 3).text()
-        expiry = self.batch_table.item(row, 4).text()
+        expiry_display = self.batch_table.item(
+            row, 4).text()  # formatted display
+        # But we also still have raw data in self.batches list; find matching batch to get raw expiry if available
+        expiry_raw = ""
+        for b in self.batches:
+            if int(b[0]) == stock_id:
+                expiry_raw = b[4] or ""
+                break
 
         dialog = QDialog(self)
         dialog.setWindowTitle("✏️ Edit Batch")
@@ -440,11 +605,20 @@ class AdminStockWindow(QWidget):
 
         purchase_input = QLineEdit(str(purchase_price))
         qty_input = QLineEdit(str(qty))
-        expiry_input = QLineEdit(str(expiry))
+
+        expiry_input = QDateEdit()
+        expiry_input.setCalendarPopup(True)
+        expiry_input.setDisplayFormat("yyyy-MM-dd")
+        parsed = _parse_date_to_dateobj(expiry_raw or expiry_display)
+        if parsed:
+            expiry_input.setDate(QDate(parsed.year, parsed.month, parsed.day))
+        else:
+            # set to current but we will allow user to clear later if you implement clearing
+            expiry_input.setDate(QDate.currentDate())
 
         form.addRow("Purchase Price:", purchase_input)
         form.addRow("Quantity:", qty_input)
-        form.addRow("Expiry (YYYY-MM-DD):", expiry_input)
+        form.addRow("Expiry (pick date):", expiry_input)
 
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         form.addWidget(btns)
@@ -453,32 +627,26 @@ class AdminStockWindow(QWidget):
 
         if dialog.exec_() == QDialog.Accepted:
             try:
-                # update stock row directly
-                conn = sqlite3.connect(os.path.join(
-                    os.path.dirname(__file__), "..", DB_FILE))
-                # above line falls back incorrectly if DB_FILE already is path; simpler: use DB_FILE directly from model path
-            except Exception:
-                # fallback to import DB_FILE from model directly
                 from models.stock_model import DB_FILE as MODEL_DB_FILE
                 conn = sqlite3.connect(MODEL_DB_FILE)
-
-            try:
                 cursor = conn.cursor()
-                now = datetime.now().isoformat(timespec="seconds")
+                now = datetime.datetime.now().isoformat(timespec="seconds")
+
+                expiry_val = expiry_input.date().toString(
+                    "yyyy-MM-dd") if expiry_input.date().isValid() else None
+
                 cursor.execute("""
                     UPDATE stock SET purchase_price = ?, quantity = ?, expiry_date = ?, updated_at = ?
                     WHERE id = ?
-                """, (float(purchase_input.text().strip() or 0), float(qty_input.text().strip() or 0), expiry_input.text().strip() or None, now, stock_id))
+                """, (float(purchase_input.text().strip() or 0),
+                      float(qty_input.text().strip() or 0),
+                      expiry_val or None,
+                      now, stock_id))
                 conn.commit()
                 conn.close()
 
                 QMessageBox.information(self, "Success", "✅ Batch updated.")
-                # refresh both tables
-                self.load_master_table()
-                cur_master = self.master_table.currentRow()
-                if cur_master >= 0:
-                    self.load_batches_for_item(
-                        self.master_table.item(cur_master, 0).text())
+                self.refresh_all()
             except Exception as e:
                 QMessageBox.warning(
                     self, "Error", f"❌ Failed to update batch: {e}")
@@ -510,7 +678,7 @@ class AdminStockWindow(QWidget):
             res = reduce_stock_quantity(item_code, qty)
             msg = f"Reduced {qty}. Remaining: {res['remaining_qty']:.2f}."
             if res.get("fell_below"):
-                msg += f"\n⚠️ Item fell below its low stock level ({res['low_stock_level']})."
+                msg += f"Item fell below its low stock level ({res['low_stock_level']})."
             QMessageBox.information(self, "Success", msg)
             # refresh
             self.load_master_table()

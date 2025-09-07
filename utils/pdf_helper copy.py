@@ -155,8 +155,8 @@ def generate_invoice_pdf(invoice_no: str, open_after: bool = False) -> str:
     bottom_margin = 16 * mm
     content_w = PAGE_W - left_margin - right_margin
 
-    # Header height reserved
-    header_height = 72 * mm  # reserve approx area for logo + invoice meta + title
+    # Header height reserved - increased so title + logo + meta have room
+    header_height = 82 * mm
     footer_height = 20 * mm
 
     # frame for main content (items + totals)
@@ -174,17 +174,26 @@ def generate_invoice_pdf(invoice_no: str, open_after: bool = False) -> str:
         logo_h = 34 * mm
         header_top = PAGE_H - top_margin + 6
 
-        # left: logo
+        # --- Title at the very top row (centered) ---
+        canvas.setFont("Helvetica-Bold", 16)
+        title_y = header_top  # near top margin
+        canvas.drawCentredString(PAGE_W / 2.0, title_y, "TAX INVOICE")
+
+        # move down for logo and meta
+        content_top = title_y - 18  # spacing between title and the rest
+
+        # left: logo (below title)
+        logo_y = content_top - logo_h + 6
         if logo_path and os.path.exists(logo_path):
             try:
-                canvas.drawImage(logo_path, left_margin, header_top - logo_h,
+                canvas.drawImage(logo_path, left_margin, logo_y,
                                  width=logo_w, height=logo_h, preserveAspectRatio=True, mask='auto')
             except Exception:
                 pass
 
-        # left: company details next to logo
+        # left: company details next to logo (start at same top line as logo)
         cx = left_margin + logo_w + 6
-        cy = header_top - 6
+        cy = content_top - 2
         canvas.setFont("Helvetica-Bold", 12)
         canvas.drawString(cx, cy, _safe(company.get("company_name") or ""))
         canvas.setFont("Helvetica", 8.5)
@@ -194,11 +203,11 @@ def generate_invoice_pdf(invoice_no: str, open_after: bool = False) -> str:
                 canvas.drawString(cx, y, ln)
                 y -= 10
 
-        # right: invoice meta box
+        # right: invoice meta box (aligned to the area below the title)
         box_w = 88 * mm
         box_h = 30 * mm
         bx = PAGE_W - right_margin - box_w
-        by = header_top - box_h
+        by = content_top - box_h + 6
         canvas.setLineWidth(0.6)
         canvas.rect(bx, by, box_w, box_h)
         canvas.setFont("Helvetica", 9)
@@ -217,9 +226,6 @@ def generate_invoice_pdf(invoice_no: str, open_after: bool = False) -> str:
         canvas.drawString(bx + 6, by + box_h - 34,
                           f"LPO No.: {_safe(header.get('lpo_no'))}")
 
-        # centered title under header boxes
-        canvas.setFont("Helvetica-Bold", 14)
-        canvas.drawCentredString(PAGE_W / 2.0, by - 6, "TAX INVOICE")
         canvas.restoreState()
 
     def draw_footer(canvas, doc):

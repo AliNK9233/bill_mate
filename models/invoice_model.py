@@ -25,6 +25,130 @@ def _connect():
     conn.execute("PRAGMA foreign_keys=ON;")
     return conn
 
+# helper: resolve customer identifier (accepts None, numeric id, or customer_code string)
+
+
+def _resolve_shipto_id(conn, shipto_identifier) -> Optional[int]:
+    if not shipto_identifier:
+        return None
+    cur = conn.cursor()
+    try:
+        sid = int(shipto_identifier)
+        cur.execute("SELECT id FROM customer_outlet WHERE id = ?", (sid,))
+        if cur.fetchone():
+            return sid
+    except Exception:
+        pass
+    # try outlet_code
+    cur.execute("SELECT id FROM customer_outlet WHERE outlet_code = ? LIMIT 1", (str(
+        shipto_identifier),))
+    r = cur.fetchone()
+    return r[0] if r else None
+
+
+def _resolve_customer_id(conn, identifier) -> Optional[int]:
+    """
+    Accepts:
+      - None -> returns None
+      - numeric id (int or numeric string) -> verifies exists and returns int
+      - customer_code (string) -> returns numeric id if found
+    """
+    if not identifier:
+        return None
+    cur = conn.cursor()
+    try:
+        # numeric?
+        iid = int(identifier)
+        cur.execute("SELECT id FROM customer WHERE id = ?", (iid,))
+        if cur.fetchone():
+            return iid
+    except Exception:
+        pass
+    # treat as customer_code
+    cur.execute("SELECT id FROM customer WHERE customer_code = ?",
+                (str(identifier),))
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
+def _resolve_salesman_id(conn, identifier) -> Optional[int]:
+    if not identifier:
+        return None
+    cur = conn.cursor()
+    try:
+        iid = int(identifier)
+        cur.execute("SELECT id FROM salesman WHERE id = ?", (iid,))
+        if cur.fetchone():
+            return iid
+    except Exception:
+        pass
+    # assume salesman code/emp id -- fallback lookup by first column 'code' or similar
+    cur.execute("SELECT id FROM salesman WHERE salesman_code = ? OR emp_id = ? LIMIT 1", (str(
+        identifier), str(identifier)))
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
+def _build_bill_ship_display(conn, bill_to_identifier, ship_to_identifier, resolved_customer_id):
+    """
+    Return (bill_to_display, ship_to_display)
+    bill_to_identifier may be: customer_code / id / free-text.
+    ship_to_identifier may be: outlet code / outlet id / free-text.
+    We attempt to look up names/addresses where possible, otherwise fall back to the passed string.
+    """
+    cur = conn.cursor()
+
+    bill_display = ""
+    # If we have a numeric customer id, fetch its name + address lines + TRN
+    if resolved_customer_id:
+        cur.execute(
+            "SELECT name, address_line1, address_line2, trn_no FROM customer WHERE id = ?", (resolved_customer_id,))
+        r = cur.fetchone()
+        if r:
+            name, a1, a2, trn = r
+            parts = [p for p in (name, a1, a2) if p]
+            bill_display = "\n".join(parts)
+            if trn:
+                bill_display += f"\nTRN: {trn}"
+    else:
+        # try if bill_to_identifier is a customer_code string
+        if bill_to_identifier:
+            cur.execute("SELECT name, address_line1, address_line2, trn_no FROM customer WHERE customer_code = ?", (str(
+                bill_to_identifier),))
+            r = cur.fetchone()
+            if r:
+                name, a1, a2, trn = r
+                parts = [p for p in (name, a1, a2) if p]
+                bill_display = "\n".join(parts)
+                if trn:
+                    bill_display += f"\nTRN: {trn}"
+            else:
+                bill_display = str(bill_to_identifier)
+
+    # ship_to: try outlets first (if ship_to_identifier looks like outlet code or numeric id)
+    ship_display = ""
+    if ship_to_identifier:
+        # try numeric id
+        try:
+            sid = int(ship_to_identifier)
+            cur.execute(
+                "SELECT outlet_name, address_line1, address_line2 FROM customer_outlet WHERE id = ?", (sid,))
+            r = cur.fetchone()
+            if r:
+                ship_display = "\n".join([p for p in (r[0], r[1], r[2]) if p])
+        except Exception:
+            # try outlet_code
+            cur.execute("SELECT outlet_name, address_line1, address_line2 FROM customer_outlet WHERE outlet_code = ? LIMIT 1", (str(
+                ship_to_identifier),))
+            r = cur.fetchone()
+            if r:
+                ship_display = "\n".join([p for p in (r[0], r[1], r[2]) if p])
+            else:
+                # fallback: maybe passed the full display already
+                ship_display = str(ship_to_identifier)
+
+    return bill_display or "", ship_display or ""
+
 
 def init_invoice_db():
     """
@@ -33,6 +157,7 @@ def init_invoice_db():
     """
     with closing(_connect()) as conn:
         cur = conn.cursor()
+        # clean, valid CREATE TABLE for invoice (no inline Python comments and no trailing comma)
         cur.execute("""
         CREATE TABLE IF NOT EXISTS invoice (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,7 +177,8 @@ def init_invoice_db():
             paid_amount REAL DEFAULT 0,
             remarks TEXT,
             status TEXT DEFAULT 'Active',
-            salesman_id INTEGER
+            salesman_id INTEGER,
+            outlet_id INTEGER
         )
         """)
         cur.execute("""
@@ -149,23 +275,43 @@ def _as_iso(dt: Union[str, datetime, date, None], end_of_day: bool = False) -> O
 def fetch_invoice(invoice_no: str) -> Tuple[Optional[Tuple], List[Tuple]]:
     """
     Return (header_row, list_of_item_rows)
-    header_row: raw invoice row (as returned by sqlite3)
-    item_rows: list of tuples representing invoice_item rows
+
+    header_row: raw invoice row as returned by `SELECT * FROM invoice WHERE invoice_no = ?`
+                (so header[0] == invoice.id)
+    item_rows: list of tuples from invoice_item table for that invoice_id.
+
+    This function is defensive: if invoice not found -> (None, []).
     """
     with closing(_connect()) as conn:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM invoice WHERE invoice_no = ?",
-                    (invoice_no,))
+
+        # Header: select invoice fields and the salesman name (if available)
+        cur.execute("""
+            SELECT
+                i.*,
+                s.name as salesman_name
+            FROM invoice i
+            LEFT JOIN salesman s ON i.salesman_id = s.id
+            WHERE i.invoice_no = ?
+            LIMIT 1
+        """, (invoice_no,))
         header = cur.fetchone()
         if not header:
             return None, []
+
+        # Fetch invoice_item rows for this invoice id (order by serial_no)
+        # Need invoice id from header (header[0] is id)
+        invoice_id = header[0]
         cur.execute("""
-            SELECT serial_no, item_code, item_name, uom, per_box_qty, quantity,
-                   rate, sub_total, vat_percentage, vat_amount, net_amount
-            FROM invoice_item WHERE invoice_id = ?
-            ORDER BY serial_no
-        """, (header[0],))
+            SELECT
+                id, invoice_id, serial_no, item_code, item_name, uom, per_box_qty,
+                quantity, rate, sub_total, vat_percentage, vat_amount, net_amount
+            FROM invoice_item
+            WHERE invoice_id = ?
+            ORDER BY serial_no ASC, id ASC
+        """, (invoice_id,))
         items = cur.fetchall()
+
         return header, items
 
 
@@ -177,14 +323,10 @@ def get_all_invoices(start_date: Optional[Union[str, datetime, date]] = None,
                      pending_only: bool = False,
                      order_by: str = "invoice_date DESC") -> List[Tuple]:
     """
-    Flexible fetch for invoices with optional filters.
-    - start_date / end_date: accept 'YYYY-MM-DD' or datetime/date; inclusive.
-    - customer_id, salesman_id: filter
-    - status: 'Active' / 'Cancelled' / etc.
-    - pending_only: if True only invoices with balance > 0
-    - order_by: SQL order clause (default newest first)
-    Returns list of tuples:
-      (invoice_no, invoice_date, customer_id, bill_to, ship_to, total_amount, vat_amount, net_total, balance, paid_amount, status, salesman_id)
+    Returns rows of invoice data with an extra 'salesman_name' column (last column).
+    Columns returned (in order):
+      invoice_no, invoice_date, customer_id, bill_to, ship_to,
+      total_amount, vat_amount, net_total, balance, paid_amount, status, salesman_name, (and optionally more if DB contains them)
     """
     where_clauses = []
     params = []
@@ -194,28 +336,44 @@ def get_all_invoices(start_date: Optional[Union[str, datetime, date]] = None,
         end_date, end_of_day=True) if end_date is not None else None
 
     if s_iso:
-        where_clauses.append("invoice_date >= ?")
+        where_clauses.append("i.invoice_date >= ?")
         params.append(s_iso)
     if e_iso:
-        where_clauses.append("invoice_date <= ?")
+        where_clauses.append("i.invoice_date <= ?")
         params.append(e_iso)
     if customer_id is not None:
-        where_clauses.append("customer_id = ?")
+        where_clauses.append("i.customer_id = ?")
         params.append(customer_id)
     if salesman_id is not None:
-        where_clauses.append("salesman_id = ?")
+        where_clauses.append("i.salesman_id = ?")
         params.append(salesman_id)
     if status is not None:
-        where_clauses.append("status = ?")
+        where_clauses.append("i.status = ?")
         params.append(status)
     if pending_only:
-        where_clauses.append("balance > 0")
+        where_clauses.append("i.balance > 0")
 
     where_sql = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+
     sql = f"""
-        SELECT invoice_no, invoice_date, customer_id, bill_to, ship_to,
-               total_amount, vat_amount, net_total, balance, paid_amount, status, salesman_id
-        FROM invoice
+        SELECT
+            i.invoice_no,
+            i.invoice_date,
+            i.customer_id,
+            i.bill_to,
+            i.ship_to,
+            i.total_amount,
+            i.vat_amount,
+            i.net_total,
+            i.balance,
+            i.paid_amount,
+            i.status,
+            COALESCE(s.name, '') AS salesman_name,
+            i.created_at,
+            i.updated_at,
+            i.outlet_id
+        FROM invoice i
+        LEFT JOIN salesman s ON i.salesman_id = s.id
         {where_sql}
         ORDER BY {order_by}
     """
@@ -454,7 +612,7 @@ def _resolve_salesman_id(conn, candidate):
     return row[0] if row else None
 
 
-def create_invoice(bill_to, ship_to, items, lpo_no="", discount=0, customer_id=None, salesman_id=None):
+def create_invoice(bill_to, ship_to, items, lpo_no="", discount=0, customer_id=None, salesman_id=None, outlet_id=None):
     """
     Create invoice atomically and reduce stock for non-free items.
     Accepts either numeric customer_id/salesman_id OR customer_code/salesman_emp_id strings.
@@ -488,6 +646,14 @@ def create_invoice(bill_to, ship_to, items, lpo_no="", discount=0, customer_id=N
             conn, customer_id or bill_to)
         resolved_salesman_id = _resolve_salesman_id(conn, salesman_id)
 
+        # resolve outlet if provided (accept numeric id or code)
+        resolved_outlet_id = None
+        if outlet_id:
+            resolved_outlet_id = _resolve_shipto_id(conn, outlet_id)
+        else:
+            # fallback: try to resolve ship_to param if it is outlet id/code
+            resolved_outlet_id = _resolve_shipto_id(conn, ship_to)
+
         # If caller provided a customer_code and it wasn't found, raise clear error
         if (customer_id or bill_to) and resolved_customer_id is None:
             raise ValueError(
@@ -497,15 +663,21 @@ def create_invoice(bill_to, ship_to, items, lpo_no="", discount=0, customer_id=N
             raise ValueError(
                 f"Salesman not found for identifier: {salesman_id}")
 
-        # Insert invoice header (use numeric ids or NULL)
+        # Build bill/ship display strings (human-friendly) to store in invoice.bill_to / ship_to
+        bill_display, ship_display = _build_bill_ship_display(
+            conn, bill_to, ship_to, resolved_customer_id)
+
         cur.execute("""
         INSERT INTO invoice (
-            invoice_no, invoice_date, customer_id, bill_to, ship_to, lpo_no,
+            invoice_no, invoice_date, customer_id, bill_to, ship_to, outlet_id, lpo_no,
             discount, total_amount, vat_amount, net_total, created_at, updated_at,
-            balance, paid_amount
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (invoice_no, now, resolved_customer_id, bill_to, ship_to, lpo_no,
-              float(discount or 0.0), total_amount, total_vat, net_total, now, now, net_total, 0.0))
+            balance, paid_amount, salesman_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            invoice_no, now, resolved_customer_id, bill_display, ship_display, resolved_outlet_id, lpo_no,
+            float(discount or 0.0), total_amount, total_vat, net_total, now, now, net_total, 0.0, resolved_salesman_id
+        ))
+
         invoice_id = cur.lastrowid
 
         # Insert items and reduce stock

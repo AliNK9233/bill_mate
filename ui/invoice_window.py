@@ -70,8 +70,13 @@ class InvoiceWindow(QWidget):
         self.setGeometry(200, 100, 1100, 650)
         self.setWindowIcon(QIcon("data/logos/billmate_logo.png"))
 
-        self.invoice_items = {}    # keyed by item_code -> dict
-        self.item_lookup = {}      # mapping of keys -> info
+        # invoice_items becomes a list of line dicts (allows duplicate codes as separate lines)
+        # list of { line_id, code, name, qty, uom, rate, vat, foc }
+        self.invoice_items = []
+        self.next_line_id = 1      # incremental id generator for invoice lines
+
+        # mapping of keys -> info (unchanged semantics)
+        self.item_lookup = {}
 
         self.setup_ui()
         self.load_customer_options()
@@ -86,30 +91,58 @@ class InvoiceWindow(QWidget):
         title.setFont(QFont("Segoe UI", 16, QFont.Bold))
         layout.addWidget(title)
 
+        # ---------------------------
+        # Create refresh buttons first
+        # ---------------------------
+        cust_refresh_btn = QPushButton("🔄")
+        cust_refresh_btn.setFixedWidth(26)
+        cust_refresh_btn.setToolTip("Refresh customers")
+        cust_refresh_btn.clicked.connect(self.load_customer_options)
+
+        ship_refresh_btn = QPushButton("🔄")
+        ship_refresh_btn.setFixedWidth(26)
+        ship_refresh_btn.setToolTip("Refresh outlets")
+        # populate_shipto_for_selected will refresh outlets for currently selected customer
+        ship_refresh_btn.clicked.connect(self.populate_shipto_for_selected)
+
+        sales_refresh_btn = QPushButton("🔄")
+        sales_refresh_btn.setFixedWidth(26)
+        sales_refresh_btn.setToolTip("Refresh salesmen")
+        sales_refresh_btn.clicked.connect(self.load_salesman_options)
+
+        # ---------------------------
         # Customer / ship / salesman row
+        # ---------------------------
         row1 = QHBoxLayout()
         row1.addWidget(QLabel("Bill To:"))
+
         self.customer_select = QComboBox()
         self.customer_select.setEditable(True)
         self.customer_select.currentIndexChanged.connect(
             self.on_billto_changed)
         row1.addWidget(self.customer_select, 2)
+        row1.addWidget(cust_refresh_btn)
 
         row1.addWidget(QLabel("Ship To:"))
         self.ship_to_select = QComboBox()
         self.ship_to_select.setEditable(True)
         row1.addWidget(self.ship_to_select, 2)
+        row1.addWidget(ship_refresh_btn)
 
         row1.addWidget(QLabel("Salesman:"))
         self.salesman_select = QComboBox()
         self.salesman_select.setEditable(True)
         row1.addWidget(self.salesman_select, 1)
+        row1.addWidget(sales_refresh_btn)
 
         layout.addLayout(row1)
 
+        # ---------------------------
         # Item search row
+        # ---------------------------
         row2 = QHBoxLayout()
         row2.addWidget(QLabel("Item (code/name/scan):"))
+
         self.item_search = QLineEdit()
         self.item_search.setPlaceholderText(
             "Type code or name (or scan barcode) and press Add")
@@ -132,17 +165,21 @@ class InvoiceWindow(QWidget):
 
         layout.addLayout(row2)
 
-        # Invoice table: columns: code, name, qty(spin), uom, rate, vat, foc, line_total, delete
+        # ---------------------------
+        # Invoice table
+        # ---------------------------
         self.invoice_table = QTableWidget()
         self.invoice_table.setColumnCount(9)
         self.invoice_table.setHorizontalHeaderLabels(
             ["Item Code", "Item Name", "Qty", "UOM",
-                "Rate (₹)", "VAT %", "FOC", "Line Total (₹)", "Action"]
+             "Rate (₹)", "VAT %", "FOC", "Line Total (₹)", "Action"]
         )
         self.invoice_table.setEditTriggers(self.invoice_table.NoEditTriggers)
         layout.addWidget(self.invoice_table)
 
+        # ---------------------------
         # Totals row (invoice-level discount)
+        # ---------------------------
         totals_row = QHBoxLayout()
         self.items_total_label = QLabel("Items Total: ₹0.00")
         self.items_total_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
@@ -164,7 +201,9 @@ class InvoiceWindow(QWidget):
 
         layout.addLayout(totals_row)
 
-        # Actions row: Save only (preview and view removed)
+        # ---------------------------
+        # Actions row: Save only
+        # ---------------------------
         actions = QHBoxLayout()
         save_btn = QPushButton("💾 Save Invoice")
         save_btn.clicked.connect(self.save_invoice)
@@ -196,22 +235,22 @@ class InvoiceWindow(QWidget):
 
     def populate_shipto_for_selected(self):
         self.ship_to_select.clear()
-        self.ship_to_select.addItem("🚫 No Ship To", None)
+        # add an empty option
+        self.ship_to_select.addItem("🚫 No Ship To (none)", None)
+
         cust_code = self.customer_select.currentData()
         if not cust_code:
             return
-        self.ship_to_select.addItem(
-            f"{self.customer_select.currentText()} (Same)", cust_code)
+
         try:
             outlets = get_outlets(cust_code) or []
             for o in outlets:
-                outlet_code = o[2] if len(o) > 2 else str(o[0])
+                # o: (id, customer_id, outlet_code, outlet_name, address_line1, address_line2, city, ...)
+                out_id = o[0]
+                outlet_code = o[2] if len(o) > 2 else str(out_id)
                 outlet_name = o[3] if len(o) > 3 else outlet_code
-                addr = (o[4] if len(o) > 4 else "") or ""
-                display = outlet_name + f" ({outlet_code})"
-                if addr:
-                    display += f" - {addr}"
-                self.ship_to_select.addItem(display, outlet_code)
+                # show only outlet name (you requested)
+                self.ship_to_select.addItem(f"{outlet_name}", out_id)
         except Exception:
             pass
 
@@ -248,13 +287,14 @@ class InvoiceWindow(QWidget):
                     continue
                 info = {"code": code, "name": name, "qty": total_qty,
                         "uom": uom, "rate": price, "vat": vat}
+                # store lookups:
+                # allow direct code lookup
                 self.item_lookup[code] = info
-                self.item_lookup[name.lower()] = info
                 key_combo = f"{code} - {name}"
+                # allow "CODE - Name" lookup
                 self.item_lookup[key_combo] = info
+                # do NOT add bare code or bare name to completions -> prevents duplicates
                 completions.add(key_combo)
-                completions.add(code)
-                completions.add(name)
         except Exception:
             pass
 
@@ -275,6 +315,7 @@ class InvoiceWindow(QWidget):
                 self, "No item", "Please enter item code or name.")
             return
 
+        # Try exact lookups: code, "CODE - Name", or case-insensitive
         info = self.item_lookup.get(text) or self.item_lookup.get(
             text.lower()) or self.item_lookup.get(text.upper())
         if not info:
@@ -297,34 +338,37 @@ class InvoiceWindow(QWidget):
                                 f"Only {info['qty']} units available.")
             return
 
-        code = info["code"]
-        if code in self.invoice_items:
-            self.invoice_items[code]["qty"] += qty
-        else:
-            self.invoice_items[code] = {
-                "code": code,
-                "name": info["name"],
-                "qty": qty,
-                "uom": info.get("uom", ""),
-                "rate": float(info.get("rate", 0.0)),
-                "vat": float(info.get("vat", 5.0)),
-                "foc": False
-            }
+        # create a new invoice line always (do not merge with existing lines)
+        line_id = f"L{self.next_line_id}"
+        self.next_line_id += 1
+        line = {
+            "line_id": line_id,
+            "code": info["code"],
+            "name": info["name"],
+            "qty": qty,
+            "uom": info.get("uom", ""),
+            "rate": float(info.get("rate", 0.0)),
+            "vat": float(info.get("vat", 5.0)),
+            "foc": False
+        }
+        self.invoice_items.append(line)
 
+        # reset input
         self.item_search.clear()
         self.qty_input.setValue(1)
         self.refresh_invoice_table()
 
     def refresh_invoice_table(self):
         """
-        Populate invoice_table with current self.invoice_items.
+        Populate invoice_table with current self.invoice_items (list).
         Qty is a QSpinBox cell widget (editable), FOC is a QCheckBox, Action column has delete button.
         """
         self.invoice_table.setRowCount(0)
         items_total = 0.0
         vat_total = 0.0
 
-        for code, it in list(self.invoice_items.items()):
+        for it in list(self.invoice_items):
+            code = it["code"]
             r = self.invoice_table.rowCount()
             self.invoice_table.insertRow(r)
 
@@ -335,7 +379,7 @@ class InvoiceWindow(QWidget):
             qty_spin.setMinimum(0)
             qty_spin.setMaximum(999999)
             qty_spin.setValue(int(it["qty"]))
-            qty_spin.setProperty("item_code", code)
+            qty_spin.setProperty("line_id", it["line_id"])
             qty_spin.valueChanged.connect(self._on_qty_changed)
             self.invoice_table.setCellWidget(r, 2, qty_spin)
 
@@ -348,7 +392,7 @@ class InvoiceWindow(QWidget):
 
             cb = QCheckBox()
             cb.setChecked(bool(it.get("foc", False)))
-            cb.setProperty("item_code", code)
+            cb.setProperty("line_id", it["line_id"])
             cb.stateChanged.connect(self._on_foc_toggled)
             self.invoice_table.setCellWidget(r, 6, cb)
 
@@ -367,7 +411,8 @@ class InvoiceWindow(QWidget):
             btn = QToolButton()
             btn.setText("🗑️")
             btn.setToolTip("Remove this line")
-            btn.clicked.connect(partial(self._on_delete_line, code))
+            # connect with the line_id so deletion removes the correct entry
+            btn.clicked.connect(partial(self._on_delete_line, it["line_id"]))
             btn.setAutoRaise(True)
             self.invoice_table.setCellWidget(r, 8, btn)
 
@@ -391,64 +436,103 @@ class InvoiceWindow(QWidget):
         widget = self.sender()
         if widget is None:
             return
-        code = widget.property("item_code")
+        line_id = widget.property("line_id")
         try:
             value = int(value)
         except Exception:
             return
-        if code in self.invoice_items:
-            self.invoice_items[code]["qty"] = value
+        # find line by id and update qty
+        for it in self.invoice_items:
+            if it.get("line_id") == line_id:
+                it["qty"] = value
+                break
             self.refresh_invoice_table()
 
     def _on_foc_toggled(self, state):
         widget = self.sender()
         if widget is None:
             return
-        code = widget.property("item_code")
-        if code in self.invoice_items:
-            self.invoice_items[code]["foc"] = bool(state)
-            self.refresh_invoice_table()
+        line_id = widget.property("line_id")
+        for it in self.invoice_items:
+            if it.get("line_id") == line_id:
+                it["foc"] = bool(state)
+                break
+        self.refresh_invoice_table()
 
-    def _on_delete_line(self, code):
-        if code in self.invoice_items:
-            del self.invoice_items[code]
-            self.refresh_invoice_table()
-
+    def _on_delete_line(self, line_id):
+        # remove item with matching line_id
+        self.invoice_items = [
+            it for it in self.invoice_items if it.get("line_id") != line_id]
+        self.refresh_invoice_table()
     # ---------------------------
     # Save invoice
     # ---------------------------
+
     def save_invoice(self):
         if not self.invoice_items:
             QMessageBox.warning(
                 self, "No items", "Please add at least one item.")
             return
 
+        # customer (may be id or code), selected outlet id (or None), salesman id
         bill_to = self.customer_select.currentData()
-        ship_to = self.ship_to_select.currentData() or self.ship_to_select.currentText()
+        selected_outlet_id = self.ship_to_select.currentData()  # may be None
         salesman = self.salesman_select.currentData()
 
+        # build payload from either dict (code -> item) or list of item dicts
         payload = []
-        for code, it in self.invoice_items.items():
-            payload.append({
-                "item_code": code,
-                "item_name": it["name"],
-                "uom": it.get("uom"),
-                "per_box_qty": 1,
-                "quantity": it["qty"],
-                "rate": it["rate"],
-                "vat_percentage": it.get("vat", 5.0),
-                "free": bool(it.get("foc", False))
-            })
+        if isinstance(self.invoice_items, dict):
+            items_source = list(self.invoice_items.values())
+        elif isinstance(self.invoice_items, list):
+            items_source = self.invoice_items
+        else:
+            try:
+                items_source = list(self.invoice_items)
+            except Exception:
+                items_source = []
 
+        for it in items_source:
+            try:
+                code = it.get("code") or it.get("item_code") or ""
+                name = it.get("name") or it.get("item_name") or ""
+                qty = float(it.get("qty") or it.get("quantity") or 0)
+                payload.append({
+                    "item_code": code,
+                    "item_name": name,
+                    "uom": it.get("uom"),
+                    "quantity": qty,
+                    "rate": float(it.get("rate", 0.0)),
+                    "vat_percentage": float(it.get("vat", it.get("vat_percentage", 5.0))),
+                    "free": bool(it.get("foc", it.get("free", False)))
+                })
+            except Exception:
+                # skip malformed item
+                continue
+
+        # invoice-level discount (compute here so we can use it in create_invoice call)
         try:
             discount_val = float(self.discount_input.text().strip() or 0.0)
         except Exception:
             discount_val = 0.0
+            self.discount_input.setText("0.00")
+
+        # ship_to param: we still pass a string for compatibility, but pass numeric outlet_id explicitly as outlet_id
+        ship_to_param = str(selected_outlet_id) if selected_outlet_id else ""
 
         # call create_invoice; handle DB busy/errors
         try:
-            inv_no = create_invoice(bill_to, ship_to, payload, lpo_no="",
-                                    discount=discount_val, customer_id=bill_to, salesman_id=salesman)
+            inv_no = create_invoice(
+                # legacy identifier for customer (code or id)
+                bill_to,
+                # legacy ship_to (we also pass outlet_id)
+                ship_to_param,
+                payload,
+                lpo_no="",
+                discount=discount_val,
+                customer_id=bill_to,
+                salesman_id=salesman,
+                outlet_id=selected_outlet_id
+            )
         except sqlite3.OperationalError as e:
             QMessageBox.warning(self, "Failed to create invoice",
                                 f"Failed to create invoice: {e}")
@@ -460,26 +544,32 @@ class InvoiceWindow(QWidget):
 
         QMessageBox.information(
             self, "Saved", f"Invoice {inv_no} created successfully.")
-        # clear and refresh
-        self.invoice_items.clear()
+
+        # clear invoice items (handle both dict and list)
+        if isinstance(self.invoice_items, dict):
+            self.invoice_items.clear()
+        else:
+            # replace with empty list to avoid keeping stale references
+            try:
+                self.invoice_items[:] = []
+            except Exception:
+                self.invoice_items = []
+
         self.refresh_invoice_table()
         self.load_item_options()
 
         # generate PDF and open it (best-effort)
         try:
-            # local import to avoid breaking if utils missing at module import time
             from utils.pdf_helper import generate_invoice_pdf
             pdf_path = generate_invoice_pdf(inv_no, open_after=False)
             if pdf_path and os.path.exists(pdf_path):
-                # save last path and open with system viewer
                 self._last_pdf_path = pdf_path
                 open_file_externally(pdf_path)
-                QMessageBox.information(self, "PDF Generated",
-                                        f"Invoice PDF generated and opened:\n{pdf_path}")
+                QMessageBox.information(
+                    self, "PDF Generated", f"Invoice PDF generated and opened:\n{pdf_path}")
             else:
-                QMessageBox.information(self, "PDF",
-                                        "Invoice saved but PDF was not created.")
+                QMessageBox.information(
+                    self, "PDF", "Invoice saved but PDF was not created.")
         except Exception as e:
-            # do not fail the save for PDF problems — notify user
             QMessageBox.warning(
                 self, "PDF Error", f"Invoice saved but PDF generation/open failed: {e}")

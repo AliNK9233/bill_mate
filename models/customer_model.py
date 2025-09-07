@@ -23,6 +23,8 @@ def init_customer_db():
         customer_code TEXT UNIQUE NOT NULL,
         name TEXT NOT NULL,
         trn_no TEXT,
+        address_line1 TEXT,
+        address_line2 TEXT,
         email TEXT,
         phone TEXT,
         remarks TEXT,
@@ -83,15 +85,17 @@ def get_next_customer_code():
     return f"{prefix}-{int(num)+1:04d}"
 
 
-def add_customer(name, trn_no=None, email=None, phone=None, remarks=""):
+def add_customer(name, trn_no=None, address_line1=None, address_line2=None, email=None, phone=None,  remarks=""):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     code = get_next_customer_code()
     now = datetime.now().isoformat(timespec="seconds")
     cursor.execute("""
-    INSERT INTO customer (customer_code, name, trn_no, email, phone, remarks, disabled, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
-    """, (code, name, trn_no, email, phone, remarks, now, now))
+    INSERT INTO customer (
+        customer_code, name, trn_no, address_line1, address_line2,
+        email, phone, remarks, disabled, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (code, name, trn_no, address_line1, address_line2, email, phone, remarks, 0, now, now))
     conn.commit()
     conn.close()
     return code
@@ -102,7 +106,8 @@ def update_customer(customer_code, **kwargs):
     Update allowed customer fields.
     Allowed keys: name, trn_no, email, phone, remarks, disabled
     """
-    allowed = {"name", "trn_no", "email", "phone", "remarks", "disabled"}
+    allowed = {"name", "trn_no", 'address_line1',
+               'address_line2', "email", "phone", "remarks", "disabled"}
     fields = []
     values = []
     for k, v in kwargs.items():
@@ -215,35 +220,59 @@ def get_outlets(customer_code, include_disabled=False):
 def get_all_customers(include_disabled=False):
     """
     Get all customers with basic details.
-    Returns list of tuples: (customer_code, name, trn_no, phone, remarks, disabled)
-    Works even if disabled column is missing.
+    Returns rows including address_line1 and address_line2 if present.
     """
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
+
+    # detect schema
     cursor.execute("PRAGMA table_info(customer)")
     cols = [r[1] for r in cursor.fetchall()]
     has_disabled = "disabled" in cols
+    has_address1 = "address_line1" in cols
+    has_address2 = "address_line2" in cols
 
     if has_disabled:
         if include_disabled:
-            cursor.execute("""
-                SELECT customer_code, name, trn_no, phone, remarks, disabled
-                FROM customer
-                ORDER BY id DESC
-            """)
+            if has_address1 and has_address2:
+                cursor.execute("""
+                    SELECT customer_code, name, trn_no,
+                           address_line1, address_line2,
+                           phone, remarks, disabled
+                    FROM customer
+                    ORDER BY id DESC
+                """)
+            else:
+                cursor.execute("""
+                    SELECT customer_code, name, trn_no, phone, remarks, disabled
+                    FROM customer
+                    ORDER BY id DESC
+                """)
         else:
-            cursor.execute("""
-                SELECT customer_code, name, trn_no, phone, remarks, disabled
-                FROM customer
-                WHERE disabled = 0
-                ORDER BY id DESC
-            """)
+            if has_address1 and has_address2:
+                cursor.execute("""
+                    SELECT customer_code, name, trn_no,
+                           address_line1, address_line2,
+                           phone, remarks, disabled
+                    FROM customer
+                    WHERE disabled = 0
+                    ORDER BY id DESC
+                """)
+            else:
+                cursor.execute("""
+                    SELECT customer_code, name, trn_no, phone, remarks, disabled
+                    FROM customer
+                    WHERE disabled = 0
+                    ORDER BY id DESC
+                """)
         rows = cursor.fetchall()
     else:
-        # return disabled as 0 for compatibility
-        if include_disabled:
+        # no disabled column in schema, so fake it with 0
+        if has_address1 and has_address2:
             cursor.execute("""
-                SELECT customer_code, name, trn_no, phone, remarks
+                SELECT customer_code, name, trn_no,
+                       address_line1, address_line2,
+                       phone, remarks
                 FROM customer
                 ORDER BY id DESC
             """)
@@ -254,7 +283,7 @@ def get_all_customers(include_disabled=False):
                 ORDER BY id DESC
             """)
         rows = cursor.fetchall()
-        # append disabled=0
+        # append disabled=0 for each row
         rows = [tuple(list(r) + [0]) for r in rows]
 
     conn.close()
