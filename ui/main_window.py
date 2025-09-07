@@ -8,7 +8,7 @@ from PyQt5.QtCore import Qt  # ✅ Needed for full-screen flags
 from ui.general_stock_window import GeneralStockWindow
 from ui.admin_stock_window import AdminStockWindow
 # from ui.dashboard_window import DashboardWindow
-from ui.sales_window import SalesWindow
+from ui.sales_window import SalesReportWindow
 from ui.customer_window import CustomerWindow
 from ui.invoice_window import InvoiceWindow
 from ui.profile_window import CompanyProfileWindow
@@ -40,6 +40,10 @@ class MainWindow(QWidget):
         # salesman tab
         self.salesman_tab = SalesmanWindow()
         self.tabs.addTab(self.salesman_tab, "🧑‍💼 Salesman Management")
+
+        # sales tab
+        self.sales_tab = SalesReportWindow()
+        self.tabs.addTab(self.sales_tab, "💸 Sales Data")
 
         # 📦 General Stock Tab (For Users)
         self.general_stock_tab = GeneralStockWindow()

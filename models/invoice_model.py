@@ -1,9 +1,12 @@
 # models/invoice_model.py
+import time
 from models.stock_model import reduce_stock_quantity  # assume exists
 import sqlite3
 import os
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from contextlib import closing
+from typing import Optional, List, Dict, Tuple, Union
+from models.stock_model import reduce_stock_quantity, add_stock, _connect as _stock_connect
 
 DB_FILE = "data/database.db"
 os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
@@ -24,9 +27,12 @@ def _connect():
 
 
 def init_invoice_db():
+    """
+    Ensure invoice related tables exist.
+    Safe to call multiple times.
+    """
     with closing(_connect()) as conn:
         cur = conn.cursor()
-        # create tables if not exists
         cur.execute("""
         CREATE TABLE IF NOT EXISTS invoice (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,7 +50,9 @@ def init_invoice_db():
             updated_at TEXT NOT NULL,
             balance REAL DEFAULT 0,
             paid_amount REAL DEFAULT 0,
-            remarks TEXT
+            remarks TEXT,
+            status TEXT DEFAULT 'Active',
+            salesman_id INTEGER
         )
         """)
         cur.execute("""
@@ -67,20 +75,24 @@ def init_invoice_db():
         """)
         conn.commit()
 
-
 # Helper to compute next invoice number
-def get_next_invoice_no():
+
+
+def get_next_invoice_no(prefix: str = "RAD") -> str:
     with closing(_connect()) as conn:
         cur = conn.cursor()
-        cur.execute("BEGIN")
         cur.execute("SELECT invoice_no FROM invoice ORDER BY id DESC LIMIT 1")
         row = cur.fetchone()
-        conn.commit()
-    if not row:
-        return "RAD-0001"
-    prefix, num = row[0].split("-")
-    next_num = int(num) + 1
-    return f"{prefix}-{next_num:04d}"
+        if not row:
+            return f"{prefix}-0001"
+        try:
+            last = row[0]
+            pfx, num = last.rsplit("-", 1)
+            next_num = int(num) + 1
+            return f"{pfx}-{next_num:04d}"
+        except Exception:
+            # fallback: append incremental number
+            return f"{prefix}-{int(datetime.now().timestamp())}"
 
 
 def _get_next_invoice_no_in_txn(cur):
@@ -104,117 +116,41 @@ def _get_next_invoice_no_in_txn(cur):
 # Import reduce_stock_quantity from stock model here to avoid circular imports at module import time
 
 
-def create_invoice(bill_to, ship_to, items, lpo_no="", discount=0, customer_id=None, salesman_id=None, max_retries=5):
+def _as_iso(dt: Union[str, datetime, date, None], end_of_day: bool = False) -> Optional[str]:
     """
-    Create invoice atomically and reduce stock using the same DB connection.
-    items: list of dicts with keys:
-      item_code, item_name, uom, per_box_qty, quantity, rate, vat_percentage, free (bool)
-    Returns invoice_no
-    Retries on transient 'database is locked' errors.
+    Normalize a date/datetime/string to ISO string used in DB comparisons.
+    Accepts: None, 'YYYY-MM-DD' or full iso string or datetime/date.
+    If end_of_day True, and input is a date-only, return end of that day.
     """
-    attempt = 0
-    last_exc = None
-
-    while attempt < max_retries:
-        attempt += 1
-        conn = _connect()
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        # try parse YYYY-MM-DD or full iso
         try:
-            cur = conn.cursor()
-            cur.execute("BEGIN")  # explicit transaction
-
-            # generate invoice_no inside txn to reduce race window
-            invoice_no = _get_next_invoice_no_in_txn(cur)
-            now = datetime.now().isoformat(timespec="seconds")
-
-            # compute totals safely (cast)
-            total_amount = 0.0
-            total_vat = 0.0
-            parsed_items = []
-            for it in items:
-                qty = float(it.get("quantity", 0))
-                free = bool(it.get("free", False))
-                rate = 0.0 if free else float(it.get("rate", 0.0))
-                sub = qty * rate
-                vat_amt = sub * (float(it.get("vat_percentage", 0.0)) / 100.0)
-                total_amount += sub
-                total_vat += vat_amt
-                parsed_items.append((it, qty, rate, vat_amt, sub, free))
-
-            taxable = max(0.0, total_amount - float(discount or 0.0))
-            net_total = taxable + total_vat
-
-            # Insert invoice header
-            cur.execute("""
-            INSERT INTO invoice (
-                invoice_no, invoice_date, customer_id, bill_to, ship_to, lpo_no,
-                discount, total_amount, vat_amount, net_total, created_at, updated_at,
-                balance, paid_amount, salesman_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (invoice_no, now, customer_id, bill_to, ship_to, lpo_no,
-                  float(discount or 0.0), total_amount, total_vat, net_total, now, now, net_total, 0.0, salesman_id))
-
-            invoice_id = cur.lastrowid
-
-            # Insert items and reduce stock using the same connection
-            for idx, (it, qty, rate, vat_amt, sub, free) in enumerate(parsed_items, start=1):
-                vat_pct = float(it.get("vat_percentage", 0.0))
-                net_amount = sub + vat_amt
-
-                cur.execute("""
-                INSERT INTO invoice_item (
-                    invoice_id, serial_no, item_code, item_name, uom, per_box_qty,
-                    quantity, rate, sub_total, vat_percentage, vat_amount, net_amount
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (invoice_id, idx, it.get("item_code"), it.get("item_name"),
-                      it.get("uom"), it.get("per_box_qty", 1),
-                      qty, rate, sub, vat_pct, vat_amt, net_amount))
-
-                # reduce stock on same conn (prevents separate writer locks)
-                if not free:
-                    reduce_stock_quantity(it.get("item_code"), qty, conn=conn)
-
-            # commit and return
-            conn.commit()
-            return invoice_no
-
-        except sqlite3.OperationalError as oe:
-            # typical transient lock error -> rollback, close, backoff and retry
-            last_exc = oe
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            conn.close()
-
-            if "locked" in str(oe).lower():
-                backoff = 0.1 * (2 ** (attempt - 1))
-                time.sleep(backoff)
-                continue  # retry
+            if len(dt) == 10:
+                d = datetime.strptime(dt, "%Y-%m-%d")
             else:
-                raise
-        except Exception as e:
-            # rollback and re-raise other exceptions (including ValueError from reduce_stock_quantity)
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            conn.close()
-            raise
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
+                d = datetime.fromisoformat(dt)
+        except Exception:
+            # as a fallback assume it's iso already
+            return dt
+    elif isinstance(dt, date) and not isinstance(dt, datetime):
+        d = datetime(dt.year, dt.month, dt.day)
+    else:
+        d = dt
 
-    # if exhausted retries
-    raise sqlite3.OperationalError(
-        f"Failed to create invoice after {max_retries} attempts: {last_exc}")
+    if end_of_day:
+        return d.replace(hour=23, minute=59, second=59, microsecond=0).isoformat()
+    else:
+        # start of day
+        return d.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
 
 
-def fetch_invoice(invoice_no):
+def fetch_invoice(invoice_no: str) -> Tuple[Optional[Tuple], List[Tuple]]:
     """
-    Fetch header and items for a given invoice_no.
-    Returns (header_row_tuple, [item_row_tuples...]) or (None, None) if not found.
+    Return (header_row, list_of_item_rows)
+    header_row: raw invoice row (as returned by sqlite3)
+    item_rows: list of tuples representing invoice_item rows
     """
     with closing(_connect()) as conn:
         cur = conn.cursor()
@@ -222,66 +158,393 @@ def fetch_invoice(invoice_no):
                     (invoice_no,))
         header = cur.fetchone()
         if not header:
-            return None, None
-        # invoice_item columns are as inserted above
+            return None, []
         cur.execute("""
-        SELECT id, serial_no, item_code, item_name, uom, per_box_qty, quantity, rate,
-               sub_total, vat_percentage, vat_amount, net_amount
-        FROM invoice_item WHERE invoice_id = ?
-        ORDER BY serial_no
+            SELECT serial_no, item_code, item_name, uom, per_box_qty, quantity,
+                   rate, sub_total, vat_percentage, vat_amount, net_amount
+            FROM invoice_item WHERE invoice_id = ?
+            ORDER BY serial_no
         """, (header[0],))
         items = cur.fetchall()
-    return header, items
+        return header, items
 
 
-def get_all_invoices():
+def get_all_invoices(start_date: Optional[Union[str, datetime, date]] = None,
+                     end_date: Optional[Union[str, datetime, date]] = None,
+                     customer_id: Optional[int] = None,
+                     salesman_id: Optional[int] = None,
+                     status: Optional[str] = None,
+                     pending_only: bool = False,
+                     order_by: str = "invoice_date DESC") -> List[Tuple]:
+    """
+    Flexible fetch for invoices with optional filters.
+    - start_date / end_date: accept 'YYYY-MM-DD' or datetime/date; inclusive.
+    - customer_id, salesman_id: filter
+    - status: 'Active' / 'Cancelled' / etc.
+    - pending_only: if True only invoices with balance > 0
+    - order_by: SQL order clause (default newest first)
+    Returns list of tuples:
+      (invoice_no, invoice_date, customer_id, bill_to, ship_to, total_amount, vat_amount, net_total, balance, paid_amount, status, salesman_id)
+    """
+    where_clauses = []
+    params = []
+
+    s_iso = _as_iso(start_date) if start_date is not None else None
+    e_iso = _as_iso(
+        end_date, end_of_day=True) if end_date is not None else None
+
+    if s_iso:
+        where_clauses.append("invoice_date >= ?")
+        params.append(s_iso)
+    if e_iso:
+        where_clauses.append("invoice_date <= ?")
+        params.append(e_iso)
+    if customer_id is not None:
+        where_clauses.append("customer_id = ?")
+        params.append(customer_id)
+    if salesman_id is not None:
+        where_clauses.append("salesman_id = ?")
+        params.append(salesman_id)
+    if status is not None:
+        where_clauses.append("status = ?")
+        params.append(status)
+    if pending_only:
+        where_clauses.append("balance > 0")
+
+    where_sql = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+    sql = f"""
+        SELECT invoice_no, invoice_date, customer_id, bill_to, ship_to,
+               total_amount, vat_amount, net_total, balance, paid_amount, status, salesman_id
+        FROM invoice
+        {where_sql}
+        ORDER BY {order_by}
+    """
+
     with closing(_connect()) as conn:
         cur = conn.cursor()
-        cur.execute("""
-            SELECT invoice_no, invoice_date, bill_to, ship_to, total_amount, vat_amount, net_total
-            FROM invoice ORDER BY id DESC
-        """)
+        cur.execute(sql, tuple(params))
         rows = cur.fetchall()
-    return rows
+        return rows
 
 
-def update_invoice_entry(invoice_no, **kwargs):
-    allowed_fields = {
-        "customer_id", "bill_to", "ship_to", "salesman_id",
-        "total_amount", "paid_amount", "balance",
-        "payment_method", "status", "remarks", "discount"
-    }
+def update_invoice_entry(invoice_no: str, **kwargs) -> bool:
+    """
+    Update allowed invoice fields. Example: update_invoice_entry("RAD-0001", paid_amount=500, balance=100)
+    Allowed fields: bill_to, ship_to, lpo_no, discount, paid_amount, balance, remarks, status, salesman_id
+    """
+    allowed = {"bill_to", "ship_to", "lpo_no", "discount",
+               "paid_amount", "balance", "remarks", "status", "salesman_id"}
     fields = []
     values = []
     for k, v in kwargs.items():
-        if k in allowed_fields:
+        if k in allowed:
             fields.append(f"{k} = ?")
             values.append(v)
     if not fields:
-        raise ValueError("No valid fields to update.")
+        raise ValueError("No updatable fields provided.")
     values.append(datetime.now().isoformat())
     values.append(invoice_no)
+    sql = f"UPDATE invoice SET {', '.join(fields)}, updated_at = ? WHERE invoice_no = ?"
     with closing(_connect()) as conn:
         cur = conn.cursor()
-        cur.execute(
-            f"UPDATE invoice SET {', '.join(fields)}, updated_at = ? WHERE invoice_no = ?", values)
+        cur.execute(sql, tuple(values))
         conn.commit()
-    return True
+        return True
 
 
-def get_customer_sales_summary(customer_code):
+def get_customer_sales_summary(customer_id: int) -> Tuple[float, int]:
+    """
+    Return (total_sales, pending_invoices_count) for given customer_id.
+    total_sales sums net_total on invoices not cancelled.
+    """
     with closing(_connect()) as conn:
         cur = conn.cursor()
         cur.execute(
-            "SELECT id FROM customer WHERE customer_code = ?", (customer_code,))
-        row = cur.fetchone()
-        if not row:
-            return None
-        customer_id = row[0]
-        cur.execute(
-            "SELECT SUM(total_amount) FROM invoice WHERE customer_id = ?", (customer_id,))
+            "SELECT COALESCE(SUM(net_total),0) FROM invoice WHERE customer_id = ? AND (status IS NULL OR status != 'Cancelled')", (customer_id,))
         total_sales = cur.fetchone()[0] or 0.0
         cur.execute(
-            "SELECT COUNT(*) FROM invoice WHERE customer_id = ? AND balance > 0", (customer_id,))
-        pending_count = cur.fetchone()[0] or 0
-    return total_sales, pending_count
+            "SELECT COUNT(*) FROM invoice WHERE customer_id = ? AND balance > 0 AND (status IS NULL OR status != 'Cancelled')", (customer_id,))
+        pending = cur.fetchone()[0] or 0
+        return float(total_sales), int(pending)
+
+
+def cancel_invoice(invoice_no: str, allow_days: int = 3) -> bool:
+    """
+    Cancel an invoice and restore stock inside the same DB transaction.
+    - Will only cancel within `allow_days` of invoice_date.
+    - Marks invoice.status = 'Cancelled' and inserts 'adjustment' stock batches to restore quantities.
+    - Returns True on success, raises ValueError or sqlite3.OperationalError on failure.
+    """
+    if not invoice_no:
+        raise ValueError("invoice_no required")
+
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+
+        # fetch invoice header
+        cur.execute(
+            "SELECT id, invoice_date, status FROM invoice WHERE invoice_no = ?", (invoice_no,))
+        row = cur.fetchone()
+        if not row:
+            raise ValueError("Invoice not found.")
+        inv_id, invoice_date_str, status = row
+
+        if status and str(status).lower() in ("cancelled", "canceled", "voided"):
+            raise ValueError("Invoice already cancelled.")
+
+        # parse invoice_date defensively
+        inv_dt = None
+        try:
+            inv_dt = datetime.fromisoformat(invoice_date_str)
+        except Exception:
+            try:
+                inv_dt = datetime.strptime(
+                    invoice_date_str, "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                try:
+                    inv_dt = datetime.strptime(invoice_date_str, "%Y-%m-%d")
+                except Exception:
+                    inv_dt = None
+
+        if inv_dt and (datetime.now() - inv_dt > timedelta(days=allow_days)):
+            raise ValueError(
+                f"Invoice can only be cancelled within {allow_days} days of creation.")
+
+        # fetch invoice items (item_code, quantity)
+        cur.execute(
+            "SELECT item_code, quantity FROM invoice_item WHERE invoice_id = ?", (inv_id,))
+        items = cur.fetchall()
+
+        # start transaction
+        conn.execute("BEGIN")
+        # mark invoice cancelled
+        now = datetime.now().isoformat(timespec="seconds")
+        cur.execute("UPDATE invoice SET status = ?, updated_at = ? WHERE id = ?",
+                    ("Cancelled", now, inv_id))
+
+        # restore stock by inserting adjustment batches using same connection
+        for item_code, qty in items:
+            if qty is None or float(qty) == 0:
+                continue
+            # find item_id
+            cur.execute(
+                "SELECT id FROM item_master WHERE item_code = ?", (item_code,))
+            r = cur.fetchone()
+            if not r:
+                # If item is missing from item_master we can't restore -> rollback
+                raise ValueError(
+                    f"Item code '{item_code}' not found in item_master; cannot restore stock.")
+
+            item_id = r[0]
+            # compute next batch_no for this item_id
+            cur.execute(
+                "SELECT IFNULL(MAX(batch_no), 0) FROM stock WHERE item_id = ?", (item_id,))
+            max_batch = cur.fetchone()[0] or 0
+            next_batch = int(max_batch) + 1
+
+            # insert adjustment stock row (purchase_price 0.0)
+            cur.execute("""
+                INSERT INTO stock (item_id, batch_no, purchase_price, expiry_date, stock_type, quantity, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (item_id, next_batch, 0.0, None, "adjustment", float(qty), now, now))
+
+        conn.commit()
+        return True
+    except sqlite3.OperationalError:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        # re-raise so UI can detect "database is locked" and show appropriate message
+        raise
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
+    finally:
+        conn.close()
+
+
+def _ensure_date_string(d: Union[str, datetime, None]) -> str:
+    """Return ISO date-time string for DB comparisons (date-only allowed)."""
+    if d is None:
+        return None
+    if isinstance(d, str):
+        return d
+    if isinstance(d, datetime):
+        return d.isoformat(timespec="seconds")
+    # if date object
+    return datetime(d.year, d.month, d.day).isoformat(timespec="seconds")
+
+
+def get_sales_summary_range(start_date: Union[str, datetime, date],
+                            end_date: Union[str, datetime, date]) -> Dict[str, float]:
+    """
+    Returns summary dict for the date range (inclusive):
+      {
+         'total_sales': sum of total_amount (without vat) for invoices (status != 'Cancelled'),
+         'total_vat': sum of vat_amount,
+         'net_total': sum of net_total,
+         'total_purchase_value': sum of (purchase_price * quantity) for stock purchases in range
+      }
+    Date args may be 'YYYY-MM-DD' or datetime.
+    """
+    s_iso = _as_iso(start_date)
+    e_iso = _as_iso(end_date, end_of_day=True)
+
+    with closing(_connect()) as conn:
+        cur = conn.cursor()
+        # invoices
+        cur.execute("""
+            SELECT COALESCE(SUM(total_amount),0), COALESCE(SUM(vat_amount),0), COALESCE(SUM(net_total),0)
+            FROM invoice
+            WHERE invoice_date >= ? AND invoice_date <= ? AND (status IS NULL OR status != 'Cancelled')
+        """, (s_iso, e_iso))
+        total_amount, total_vat, net_total = cur.fetchone()
+
+        # purchases in stock table (stock_type = 'purchase')
+        cur.execute("""
+            SELECT COALESCE(SUM(purchase_price * quantity), 0) FROM stock
+            WHERE created_at >= ? AND created_at <= ? AND stock_type = 'purchase'
+        """, (s_iso, e_iso))
+        total_purchase_value = cur.fetchone()[0] or 0.0
+
+        return {
+            "total_sales": float(total_amount or 0.0),
+            "total_vat": float(total_vat or 0.0),
+            "net_total": float(net_total or 0.0),
+            "total_purchase_value": float(total_purchase_value or 0.0)
+        }
+
+
+def _resolve_customer_id(conn, candidate):
+    """
+    If candidate is numeric (int), return it.
+    If candidate is a customer_code (string), return matching customer.id or None.
+    """
+    if candidate is None:
+        return None
+    try:
+        # already an integer id
+        return int(candidate)
+    except Exception:
+        pass
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM customer WHERE customer_code = ? COLLATE NOCASE", (str(candidate),))
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
+def _resolve_salesman_id(conn, candidate):
+    """Resolve salesman by emp_id or return numeric id if already int."""
+    if candidate is None:
+        return None
+    try:
+        return int(candidate)
+    except Exception:
+        pass
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM salesman WHERE emp_id = ? COLLATE NOCASE", (str(candidate),))
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
+def create_invoice(bill_to, ship_to, items, lpo_no="", discount=0, customer_id=None, salesman_id=None):
+    """
+    Create invoice atomically and reduce stock for non-free items.
+    Accepts either numeric customer_id/salesman_id OR customer_code/salesman_emp_id strings.
+    Returns invoice_no (string) on success.
+    Raises ValueError with clear messages for missing/invalid references.
+    """
+
+    invoice_no = get_next_invoice_no()
+    now = datetime.now().isoformat(timespec="seconds")
+
+    # totals
+    total_amount = 0.0
+    total_vat = 0.0
+    for it in items:
+        qty = float(it.get("quantity", 0))
+        rate = 0.0 if it.get("free", False) else float(it.get("rate", 0.0))
+        sub = qty * rate
+        vat_amt = sub * (float(it.get("vat_percentage", 0.0)) / 100.0)
+        total_amount += sub
+        total_vat += vat_amt
+
+    taxable = max(0.0, total_amount - float(discount or 0.0))
+    net_total = taxable + total_vat
+
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        conn.execute("BEGIN")
+        # Resolve customer_id & salesman_id if needed
+        resolved_customer_id = _resolve_customer_id(
+            conn, customer_id or bill_to)
+        resolved_salesman_id = _resolve_salesman_id(conn, salesman_id)
+
+        # If caller provided a customer_code and it wasn't found, raise clear error
+        if (customer_id or bill_to) and resolved_customer_id is None:
+            raise ValueError(
+                f"Customer not found for identifier: {customer_id or bill_to}")
+
+        if salesman_id and resolved_salesman_id is None:
+            raise ValueError(
+                f"Salesman not found for identifier: {salesman_id}")
+
+        # Insert invoice header (use numeric ids or NULL)
+        cur.execute("""
+        INSERT INTO invoice (
+            invoice_no, invoice_date, customer_id, bill_to, ship_to, lpo_no,
+            discount, total_amount, vat_amount, net_total, created_at, updated_at,
+            balance, paid_amount
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (invoice_no, now, resolved_customer_id, bill_to, ship_to, lpo_no,
+              float(discount or 0.0), total_amount, total_vat, net_total, now, now, net_total, 0.0))
+        invoice_id = cur.lastrowid
+
+        # Insert items and reduce stock
+        for idx, it in enumerate(items, start=1):
+            qty = float(it.get("quantity", 0))
+            rate = 0.0 if it.get("free", False) else float(it.get("rate", 0.0))
+            sub = qty * rate
+            vat_pct = float(it.get("vat_percentage", 0.0))
+            vat_amt = sub * (vat_pct / 100.0)
+            net_amount = sub + vat_amt
+
+            cur.execute("""
+            INSERT INTO invoice_item (
+                invoice_id, serial_no, item_code, item_name, uom, per_box_qty,
+                quantity, rate, sub_total, vat_percentage, vat_amount, net_amount
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (invoice_id, idx, it.get("item_code"), it.get("item_name"),
+                  it.get("uom"), it.get("per_box_qty", 1),
+                  qty, rate, sub, vat_pct, vat_amt, net_amount))
+
+            if not it.get("free", False):
+                # reduce_stock_quantity expects item_code; keep same behaviour.
+                reduce_stock_quantity(it.get("item_code"), qty, conn=conn)
+
+        conn.commit()
+        return invoice_no
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        # Make FK / resolution errors friendlier
+        if isinstance(e, sqlite3.IntegrityError) and "FOREIGN KEY" in str(e).upper():
+            raise ValueError(
+                f"Foreign key constraint failed while creating invoice: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+# initialize on import
+init_invoice_db()
