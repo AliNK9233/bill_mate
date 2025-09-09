@@ -13,17 +13,12 @@ os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
 
 
 def _connect():
-    """
-    Centralize sqlite connection settings: increase timeout and
-    enable WAL mode which reduces database locked errors in multi-operation flows.
-    """
-    conn = sqlite3.connect(
-        # autocommit disabled via explicit transactions
-        DB_FILE, timeout=30, isolation_level=None)
-    # Set pragmas each connection
+    conn = sqlite3.connect(DB_FILE, timeout=30, isolation_level=None)
+    conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA foreign_keys=ON;")
     return conn
+
 
 # helper: resolve customer identifier (accepts None, numeric id, or customer_code string)
 
@@ -178,7 +173,8 @@ def init_invoice_db():
             remarks TEXT,
             status TEXT DEFAULT 'Active',
             salesman_id INTEGER,
-            outlet_id INTEGER
+            outlet_id INTEGER,
+            cancel_reason TEXT DEFAULT NULL
         )
         """)
         cur.execute("""
@@ -272,24 +268,34 @@ def _as_iso(dt: Union[str, datetime, date, None], end_of_day: bool = False) -> O
         return d.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
 
 
-def fetch_invoice(invoice_no: str) -> Tuple[Optional[Tuple], List[Tuple]]:
-    """
-    Return (header_row, list_of_item_rows)
-
-    header_row: raw invoice row as returned by `SELECT * FROM invoice WHERE invoice_no = ?`
-                (so header[0] == invoice.id)
-    item_rows: list of tuples from invoice_item table for that invoice_id.
-
-    This function is defensive: if invoice not found -> (None, []).
-    """
-    with closing(_connect()) as conn:
+def fetch_invoice(invoice_no: str):
+    conn = _connect()
+    conn.row_factory = sqlite3.Row
+    with closing(conn):
         cur = conn.cursor()
-
-        # Header: select invoice fields and the salesman name (if available)
         cur.execute("""
             SELECT
-                i.*,
-                s.name as salesman_name
+                i.id,
+                i.invoice_no,
+                i.invoice_date,
+                i.customer_id,
+                i.bill_to,
+                i.ship_to,
+                i.lpo_no,
+                i.discount,
+                i.total_amount,
+                i.vat_amount,
+                i.net_total,
+                i.created_at,
+                i.updated_at,
+                i.balance,
+                i.paid_amount,
+                i.remarks,
+                i.status,
+                i.salesman_id,
+                COALESCE(s.name,'') AS salesman_name,
+                i.outlet_id,
+                i.cancel_reason
             FROM invoice i
             LEFT JOIN salesman s ON i.salesman_id = s.id
             WHERE i.invoice_no = ?
@@ -299,9 +305,8 @@ def fetch_invoice(invoice_no: str) -> Tuple[Optional[Tuple], List[Tuple]]:
         if not header:
             return None, []
 
-        # Fetch invoice_item rows for this invoice id (order by serial_no)
-        # Need invoice id from header (header[0] is id)
-        invoice_id = header[0]
+        invoice_id = header["id"]
+
         cur.execute("""
             SELECT
                 id, invoice_id, serial_no, item_code, item_name, uom, per_box_qty,
@@ -310,8 +315,9 @@ def fetch_invoice(invoice_no: str) -> Tuple[Optional[Tuple], List[Tuple]]:
             WHERE invoice_id = ?
             ORDER BY serial_no ASC, id ASC
         """, (invoice_id,))
-        items = cur.fetchall()
-
+        items = [dict(row) for row in cur.fetchall()
+                 ]  # convert items to dicts too if you like
+        # return header as dict-like Row and items as list-of-dicts
         return header, items
 
 
@@ -322,12 +328,7 @@ def get_all_invoices(start_date: Optional[Union[str, datetime, date]] = None,
                      status: Optional[str] = None,
                      pending_only: bool = False,
                      order_by: str = "invoice_date DESC") -> List[Tuple]:
-    """
-    Returns rows of invoice data with an extra 'salesman_name' column (last column).
-    Columns returned (in order):
-      invoice_no, invoice_date, customer_id, bill_to, ship_to,
-      total_amount, vat_amount, net_total, balance, paid_amount, status, salesman_name, (and optionally more if DB contains them)
-    """
+
     where_clauses = []
     params = []
 
@@ -371,7 +372,8 @@ def get_all_invoices(start_date: Optional[Union[str, datetime, date]] = None,
             COALESCE(s.name, '') AS salesman_name,
             i.created_at,
             i.updated_at,
-            i.outlet_id
+            i.outlet_id,
+            i.cancel_reason
         FROM invoice i
         LEFT JOIN salesman s ON i.salesman_id = s.id
         {where_sql}
@@ -391,7 +393,7 @@ def update_invoice_entry(invoice_no: str, **kwargs) -> bool:
     Allowed fields: bill_to, ship_to, lpo_no, discount, paid_amount, balance, remarks, status, salesman_id
     """
     allowed = {"bill_to", "ship_to", "lpo_no", "discount",
-               "paid_amount", "balance", "remarks", "status", "salesman_id"}
+               "paid_amount", "balance", "remarks", "status", "salesman_id", "cancel_reason"}
     fields = []
     values = []
     for k, v in kwargs.items():
@@ -426,12 +428,13 @@ def get_customer_sales_summary(customer_id: int) -> Tuple[float, int]:
         return float(total_sales), int(pending)
 
 
-def cancel_invoice(invoice_no: str, allow_days: int = 3) -> bool:
+def cancel_invoice(invoice_no: str, allow_days: int = 3, reason: str = None, adjust_stock: bool = True) -> bool:
     """
-    Cancel an invoice and restore stock inside the same DB transaction.
-    - Will only cancel within `allow_days` of invoice_date.
-    - Marks invoice.status = 'Cancelled' and inserts 'adjustment' stock batches to restore quantities.
-    - Returns True on success, raises ValueError or sqlite3.OperationalError on failure.
+    Cancel an invoice:
+      - Marks invoice.status = 'Cancelled'
+      - Sets cancel_reason (if provided)
+      - If adjust_stock is True, restores stock by inserting adjustment rows (legacy behavior).
+    Only allowed within `allow_days` of invoice_date.
     """
     if not invoice_no:
         raise ValueError("invoice_no required")
@@ -453,59 +456,60 @@ def cancel_invoice(invoice_no: str, allow_days: int = 3) -> bool:
 
         # parse invoice_date defensively
         inv_dt = None
-        try:
-            inv_dt = datetime.fromisoformat(invoice_date_str)
-        except Exception:
+        for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
             try:
-                inv_dt = datetime.strptime(
-                    invoice_date_str, "%Y-%m-%d %H:%M:%S")
+                from datetime import datetime as _dt
+                inv_dt = _dt.strptime(invoice_date_str, fmt)
+                break
             except Exception:
-                try:
-                    inv_dt = datetime.strptime(invoice_date_str, "%Y-%m-%d")
-                except Exception:
-                    inv_dt = None
+                continue
+        # fallback ISO parsing
+        if inv_dt is None:
+            try:
+                from datetime import datetime as _dt
+                inv_dt = _dt.fromisoformat(invoice_date_str)
+            except Exception:
+                inv_dt = None
 
         if inv_dt and (datetime.now() - inv_dt > timedelta(days=allow_days)):
             raise ValueError(
                 f"Invoice can only be cancelled within {allow_days} days of creation.")
 
-        # fetch invoice items (item_code, quantity)
-        cur.execute(
-            "SELECT item_code, quantity FROM invoice_item WHERE invoice_id = ?", (inv_id,))
-        items = cur.fetchall()
-
-        # start transaction
+        # begin transaction
         conn.execute("BEGIN")
-        # mark invoice cancelled
         now = datetime.now().isoformat(timespec="seconds")
-        cur.execute("UPDATE invoice SET status = ?, updated_at = ? WHERE id = ?",
-                    ("Cancelled", now, inv_id))
 
-        # restore stock by inserting adjustment batches using same connection
-        for item_code, qty in items:
-            if qty is None or float(qty) == 0:
-                continue
-            # find item_id
+        # mark invoice cancelled and set cancel_reason (if provided)
+        if reason:
+            cur.execute("UPDATE invoice SET status = ?, cancel_reason = ?, updated_at = ? WHERE id = ?",
+                        ("Cancelled", reason, now, inv_id))
+        else:
+            cur.execute("UPDATE invoice SET status = ?, updated_at = ? WHERE id = ?",
+                        ("Cancelled", now, inv_id))
+
+        # restore stock if requested (legacy behavior)
+        if adjust_stock:
             cur.execute(
-                "SELECT id FROM item_master WHERE item_code = ?", (item_code,))
-            r = cur.fetchone()
-            if not r:
-                # If item is missing from item_master we can't restore -> rollback
-                raise ValueError(
-                    f"Item code '{item_code}' not found in item_master; cannot restore stock.")
-
-            item_id = r[0]
-            # compute next batch_no for this item_id
-            cur.execute(
-                "SELECT IFNULL(MAX(batch_no), 0) FROM stock WHERE item_id = ?", (item_id,))
-            max_batch = cur.fetchone()[0] or 0
-            next_batch = int(max_batch) + 1
-
-            # insert adjustment stock row (purchase_price 0.0)
-            cur.execute("""
-                INSERT INTO stock (item_id, batch_no, purchase_price, expiry_date, stock_type, quantity, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (item_id, next_batch, 0.0, None, "adjustment", float(qty), now, now))
+                "SELECT item_code, quantity FROM invoice_item WHERE invoice_id = ?", (inv_id,))
+            items = cur.fetchall()
+            for item_code, qty in items:
+                if qty is None or float(qty) == 0:
+                    continue
+                cur.execute(
+                    "SELECT id FROM item_master WHERE item_code = ?", (item_code,))
+                r = cur.fetchone()
+                if not r:
+                    raise ValueError(
+                        f"Item code '{item_code}' not found in item_master; cannot restore stock.")
+                item_id = r[0]
+                cur.execute(
+                    "SELECT IFNULL(MAX(batch_no), 0) FROM stock WHERE item_id = ?", (item_id,))
+                max_batch = cur.fetchone()[0] or 0
+                next_batch = int(max_batch) + 1
+                cur.execute("""
+                    INSERT INTO stock (item_id, batch_no, purchase_price, expiry_date, stock_type, quantity, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (item_id, next_batch, 0.0, None, "adjustment", float(qty), now, now))
 
         conn.commit()
         return True
@@ -514,7 +518,6 @@ def cancel_invoice(invoice_no: str, allow_days: int = 3) -> bool:
             conn.rollback()
         except Exception:
             pass
-        # re-raise so UI can detect "database is locked" and show appropriate message
         raise
     except Exception:
         try:
