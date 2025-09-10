@@ -5,7 +5,7 @@ import sqlite3
 import os
 from datetime import date, datetime, timedelta
 from contextlib import closing
-from typing import Optional, List, Dict, Tuple, Union
+from typing import Optional, List, Dict, Tuple, Union, Any
 from models.stock_model import reduce_stock_quantity, add_stock, _connect as _stock_connect
 
 DB_FILE = "data/database.db"
@@ -716,6 +716,250 @@ def create_invoice(bill_to, ship_to, items, lpo_no="", discount=0, customer_id=N
         if isinstance(e, sqlite3.IntegrityError) and "FOREIGN KEY" in str(e).upper():
             raise ValueError(
                 f"Foreign key constraint failed while creating invoice: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+def save_invoice_items_and_recalc(invoice_no: str, items: List[Dict[str, Any]], adjust_stock: bool = False) -> bool:
+    """
+    Replace invoice items for invoice_no with given items list and recalc totals.
+    items: list of dicts with keys: item_code, item_name, uom, quantity, rate, vat_percentage, free (optional)
+    If adjust_stock is True, will attempt to adjust stock differences (legacy behaviour) — currently not applied.
+    Returns True on success.
+    """
+    if not invoice_no:
+        raise ValueError("invoice_no required")
+
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        # fetch invoice id and existing paid amount
+        cur.execute(
+            "SELECT id, paid_amount FROM invoice WHERE invoice_no = ?", (invoice_no,))
+        row = cur.fetchone()
+        if not row:
+            raise ValueError("Invoice not found.")
+        invoice_id = row["id"]
+        paid_amount = float(row["paid_amount"] or 0.0)
+
+        conn.execute("BEGIN")
+        # Option: if adjust_stock True we should compute diffs and restore/consume stock accordingly.
+        # For safety we skip automatic stock diffing unless you explicitly call with adjust_stock True and accept risks.
+        # Delete existing items (ON DELETE CASCADE doesn't change invoice totals)
+        cur.execute(
+            "DELETE FROM invoice_item WHERE invoice_id = ?", (invoice_id,))
+
+        total_amount = 0.0
+        total_vat = 0.0
+        # insert new items
+        for idx, it in enumerate(items, start=1):
+            qty = float(it.get("quantity", 0) or 0.0)
+            rate = 0.0 if it.get("free", False) else float(
+                it.get("rate", 0.0) or 0.0)
+            sub = qty * rate
+            vat_pct = float(
+                it.get("vat_percentage", it.get("vat", 0.0) or 0.0))
+            vat_amt = sub * (vat_pct / 100.0) if sub else 0.0
+            net_amount = sub + vat_amt
+
+            total_amount += sub
+            total_vat += vat_amt
+
+            cur.execute("""
+                INSERT INTO invoice_item (
+                    invoice_id, serial_no, item_code, item_name, uom, per_box_qty,
+                    quantity, rate, sub_total, vat_percentage, vat_amount, net_amount
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                invoice_id, idx, it.get("item_code"), it.get("item_name"),
+                it.get("uom"), int(it.get("per_box_qty", 1) or 1),
+                qty, rate, sub, vat_pct, vat_amt, net_amount
+            ))
+
+            # optional stock adjust (only if explicitly asked)
+            if adjust_stock and not it.get("free", False):
+                try:
+                    # reduce_stock_quantity signature in your project expects (item_code, qty, conn=...)
+                    reduce_stock_quantity(it.get("item_code"), qty, conn=conn)
+                except Exception:
+                    # do not fail whole tx on stock adjustment problem; surface error after commit/rollback decision
+                    pass
+
+        taxable = total_amount  # your model uses discount field; if using discount adjust here
+        net_total = taxable + total_vat
+
+        # recompute balance: keep paid_amount same and compute balance = max(0, net_total - paid_amount)
+        new_balance = max(0.0, net_total - paid_amount)
+
+        now = datetime.now().isoformat(timespec="seconds")
+        cur.execute("""
+            UPDATE invoice
+            SET total_amount = ?, vat_amount = ?, net_total = ?, balance = ?, updated_at = ?
+            WHERE id = ?
+        """, (total_amount, total_vat, net_total, new_balance, now, invoice_id))
+
+        conn.commit()
+        return True
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
+    finally:
+        conn.close()
+
+
+def save_invoice_items_and_recalc(invoice_no: str, new_items: List[Dict], adjust_stock: bool = True) -> bool:
+    """
+    Replace invoice items for `invoice_no` with `new_items` and (optionally) adjust stock.
+
+    new_items: list of dicts with keys (recommended):
+        - item_code (str)
+        - item_name (str) optional
+        - quantity (number)
+        - rate (number) optional
+        - vat_percentage (number) optional
+        - uom, per_box_qty optional
+        - serial_no optional (if missing, inserted sequentially)
+
+    adjust_stock: if True, this function will call reduce_stock_quantity/add_stock
+                  to apply the quantity deltas to stock.
+
+    Returns True on success. Raises exception on failure (DB rolled back).
+    """
+    if not invoice_no:
+        raise ValueError("invoice_no required")
+
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+
+        # fetch invoice header (id and paid_amount)
+        cur.execute(
+            "SELECT id, paid_amount FROM invoice WHERE invoice_no = ? LIMIT 1", (invoice_no,))
+        hdr = cur.fetchone()
+        if not hdr:
+            raise ValueError(f"Invoice not found: {invoice_no}")
+        inv_id = hdr["id"]
+        paid_amount = float(hdr["paid_amount"] or 0.0)
+
+        # fetch existing items aggregated by item_code
+        cur.execute(
+            "SELECT item_code, COALESCE(SUM(quantity),0) as qty FROM invoice_item WHERE invoice_id = ? GROUP BY item_code", (inv_id,))
+        existing_rows = cur.fetchall()
+        existing_map = {row["item_code"]: float(
+            row["qty"] or 0.0) for row in existing_rows}
+
+        # build new items map (sum qty if same item appears multiple times)
+        new_map = {}
+        for it in new_items:
+            code = (it.get("item_code") or "").strip()
+            qty = float(it.get("quantity") or 0.0)
+            new_map[code] = new_map.get(code, 0.0) + qty
+
+        # compute deltas (new - old)
+        all_codes = set(existing_map.keys()) | set(new_map.keys())
+        deltas = {c: new_map.get(c, 0.0) - existing_map.get(c, 0.0)
+                  for c in all_codes}
+
+        # Begin transaction
+        conn.execute("BEGIN")
+        now = datetime.now().isoformat(timespec="seconds")
+
+        # Adjust stock based on deltas (if requested)
+        if adjust_stock:
+            for code, delta in deltas.items():
+                if abs(delta) < 1e-9:
+                    continue
+                # delta > 0 -> we need to reduce additional stock
+                if delta > 0:
+                    try:
+                        # reduce_stock_quantity expected to accept conn=conn (create_invoice uses that)
+                        reduce_stock_quantity(code, float(delta), conn=conn)
+                    except TypeError:
+                        # maybe reduce_stock_quantity signature without conn
+                        reduce_stock_quantity(code, float(delta))
+                else:
+                    # delta < 0 -> restore stock by abs(delta)
+                    qty_to_restore = float(abs(delta))
+                    # try add_stock helper if present
+                    try:
+                        add_stock(code, qty_to_restore, conn=conn)
+                    except Exception:
+                        # fallback: try add_stock without conn
+                        try:
+                            add_stock(code, qty_to_restore)
+                        except Exception:
+                            # fallback: insert into stock table as adjustment if item_master and stock exist
+                            try:
+                                cur.execute(
+                                    "SELECT id FROM item_master WHERE item_code = ? LIMIT 1", (code,))
+                                r = cur.fetchone()
+                                if not r:
+                                    # If we cannot restore (no item master), raise to rollback
+                                    raise ValueError(
+                                        f"Cannot restore stock for item '{code}': item not found in item_master and add_stock unavailable.")
+                                item_id = r[0]
+                                cur.execute(
+                                    "SELECT IFNULL(MAX(batch_no), 0) FROM stock WHERE item_id = ?", (item_id,))
+                                max_batch = cur.fetchone()[0] or 0
+                                next_batch = int(max_batch) + 1
+                                cur.execute("""
+                                    INSERT INTO stock (item_id, batch_no, purchase_price, expiry_date, stock_type, quantity, created_at, updated_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                """, (item_id, next_batch, 0.0, None, "adjustment", float(qty_to_restore), now, now))
+                            except Exception as e:
+                                raise RuntimeError(
+                                    f"Failed to restore stock for '{code}': {e}")
+
+        # Delete existing invoice_item rows for this invoice (we will re-insert from new_items)
+        cur.execute("DELETE FROM invoice_item WHERE invoice_id = ?", (inv_id,))
+
+        # Insert new items and accumulate totals
+        total_amount = 0.0
+        total_vat = 0.0
+        for idx, it in enumerate(new_items, start=1):
+            code = it.get("item_code") or ""
+            name = it.get("item_name") or None
+            uom = it.get("uom") or None
+            per_box_qty = it.get("per_box_qty", 1)
+            qty = float(it.get("quantity") or 0.0)
+            # if marked free or foc use rate 0
+            free_flag = bool(it.get("free") or it.get("foc") or False)
+            rate = 0.0 if free_flag else float(it.get("rate") or 0.0)
+            sub = 0.0 if free_flag else (qty * rate)
+            vat_pct = float(it.get("vat_percentage") or 0.0)
+            vat_amt = 0.0 if free_flag else (sub * (vat_pct / 100.0))
+            net_amount = sub + vat_amt
+
+            total_amount += sub
+            total_vat += vat_amt
+
+            cur.execute("""
+                INSERT INTO invoice_item (
+                    invoice_id, serial_no, item_code, item_name, uom, per_box_qty,
+                    quantity, rate, sub_total, vat_percentage, vat_amount, net_amount
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (inv_id, idx, code, name, uom, per_box_qty, qty, rate, sub, vat_pct, vat_amt, net_amount))
+
+        net_total = total_amount + total_vat
+        balance = max(0.0, net_total - float(paid_amount or 0.0))
+
+        # Update invoice totals
+        cur.execute("""
+            UPDATE invoice SET total_amount = ?, vat_amount = ?, net_total = ?, balance = ?, updated_at = ?
+            WHERE id = ?
+        """, (total_amount, total_vat, net_total, balance, now, inv_id))
+
+        conn.commit()
+        return True
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         raise
     finally:
         conn.close()

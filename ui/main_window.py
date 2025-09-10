@@ -13,6 +13,8 @@ from ui.customer_window import CustomerWindow
 from ui.invoice_window import InvoiceWindow
 from ui.profile_window import CompanyProfileWindow
 from ui.salesman_window import SalesmanWindow
+from ui.welcome_window import WelcomeWindow
+from ui.edit_invoice_window import EditInvoiceWindow
 
 
 class MainWindow(QWidget):
@@ -33,9 +35,17 @@ class MainWindow(QWidget):
         # Tabs
         self.tabs = QTabWidget()
 
+        # Welcome Tab
+        self.welcome_tab = WelcomeWindow()
+        self.tabs.addTab(self.welcome_tab, "🏠 Welcome")
+
         # 🧾 Invoice Tab (Default Tab)
         self.invoice_tab = InvoiceWindow()
         self.tabs.addTab(self.invoice_tab, "🧾 Invoice")
+
+        # edit invoice tab
+        self.edit_invoice_tab = EditInvoiceWindow()
+        self.tabs.addTab(self.edit_invoice_tab, "📝 Edit Invoice")
 
         # salesman tab
         self.salesman_tab = SalesmanWindow()
