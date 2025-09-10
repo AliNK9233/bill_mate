@@ -15,6 +15,7 @@ from ui.profile_window import CompanyProfileWindow
 from ui.salesman_window import SalesmanWindow
 from ui.welcome_window import WelcomeWindow
 from ui.edit_invoice_window import EditInvoiceWindow
+from ui.delivery_note_window import DeliveryNoteWindow
 
 
 class MainWindow(QWidget):
@@ -46,6 +47,10 @@ class MainWindow(QWidget):
         # edit invoice tab
         self.edit_invoice_tab = EditInvoiceWindow()
         self.tabs.addTab(self.edit_invoice_tab, "📝 Edit Invoice")
+
+        # delivery note tab
+        self.delivery_note_tab = DeliveryNoteWindow()
+        self.tabs.addTab(self.delivery_note_tab, "🚚 Delivery Note")
 
         # salesman tab
         self.salesman_tab = SalesmanWindow()

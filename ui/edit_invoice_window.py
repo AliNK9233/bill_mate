@@ -31,11 +31,11 @@ except Exception:
     get_outlets = None
     get_all_customers = None
 
-# best-source for VAT: item master lookup (if available)
+# ---- CORRECT: use stock_model helper that exists in your project ----
 try:
-    from models.item_model import get_item_by_code
+    from models.stock_model import get_item_by_item_code
 except Exception:
-    get_item_by_code = None
+    get_item_by_item_code = None
 
 
 def parse_db_date(s):
@@ -313,7 +313,7 @@ class EditInvoiceWindow(QWidget):
     def _populate_inline_item_list(self):
         """
         Build inline combo using models.stock_model.get_consolidated_stock (if present).
-        Prefer VAT from item master (get_item_by_code). If not available, detect vat col heuristically.
+        Prefer VAT from item master (get_item_by_item_code). If not available, detect vat col heuristically.
         """
         self._inline_item_map.clear()
         self.inline_item_combo.clear()
@@ -397,9 +397,9 @@ class EditInvoiceWindow(QWidget):
                             vat = 0.0
 
                 # if we have item master, prefer its VAT
-                if get_item_by_code and code:
+                if get_item_by_item_code and code:
                     try:
-                        im = get_item_by_code(code)
+                        im = get_item_by_item_code(code)
                         if im:
                             # accept dict-like returns
                             if isinstance(im, dict):
@@ -408,9 +408,11 @@ class EditInvoiceWindow(QWidget):
                                 if vat_candidate is not None and str(vat_candidate).strip() != "":
                                     vat = float(vat_candidate)
                             else:
-                                # if tuple/list try common positions (best-effort)
+                                # tuple/list -> try known indices (item_master format in stock_model)
                                 try:
-                                    vat = float(im[4]) if len(im) > 4 else vat
+                                    # stock_model.item_master columns: id, item_code, name, uom, per_box_qty, vat_percentage, selling_price, remarks, low_stock_level, created_at, updated_at
+                                    if len(im) > 5:
+                                        vat = float(im[5])
                                 except Exception:
                                     pass
                     except Exception:
@@ -424,10 +426,11 @@ class EditInvoiceWindow(QWidget):
                 continue
 
         # add entries to combo, attach completer
-        self.inline_item_combo.addItems(entries)
-        completer = QCompleter(entries, self.inline_item_combo)
-        completer.setCaseSensitivity(Qt.CaseInsensitive)
-        self.inline_item_combo.setCompleter(completer)
+        if entries:
+            self.inline_item_combo.addItems(entries)
+            completer = QCompleter(entries, self.inline_item_combo)
+            completer.setCaseSensitivity(Qt.CaseInsensitive)
+            self.inline_item_combo.setCompleter(completer)
 
     # ---------------------------
     # Load / populate
@@ -1008,10 +1011,11 @@ class EditInvoiceWindow(QWidget):
                                 f"Failed to update invoice header: {e}")
             return
 
-        # Save items via model helper (recommended) which will adjust stock
+        # Save items via model helper (recommended) which will adjust stock if implemented
         items_saved = False
         if save_invoice_items_and_recalc:
             try:
+                # adjust_stock=True to reflect item qty changes in stock. Model must implement this safely.
                 save_invoice_items_and_recalc(
                     self.current_invoice_no, items_payload, adjust_stock=True)
                 items_saved = True
