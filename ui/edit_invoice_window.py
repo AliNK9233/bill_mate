@@ -334,6 +334,7 @@ class EditInvoiceWindow(QWidget):
         vat_index = -1
         if stock_rows and isinstance(stock_rows[0], (list, tuple)):
             vat_index = self._detect_vat_column_index(stock_rows)
+            print(f"Detected VAT column index: {vat_index}")
 
         entries = []
         for r in stock_rows:

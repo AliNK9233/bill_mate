@@ -365,13 +365,18 @@ def reduce_stock_quantity(item_code: str, qty_to_reduce: float, conn: Optional[s
 def get_consolidated_stock() -> List[Tuple]:
     """
     Returns list of tuples:
-    (item_code, name, total_qty, uom, selling_price, low_stock_level, is_below)
+    (item_code, name, total_qty, uom, selling_price, vat_percentage, low_stock_level, is_below)
     """
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("""
-    SELECT im.item_code, im.name, IFNULL(SUM(s.quantity), 0) as total_qty,
-           im.uom, im.selling_price, IFNULL(im.low_stock_level, 0) as low_stock_level
+    SELECT im.item_code,
+           im.name,
+           IFNULL(SUM(s.quantity), 0) as total_qty,
+           im.uom,
+           im.selling_price,
+           IFNULL(im.vat_percentage, 5.0) as vat_percentage,
+           IFNULL(im.low_stock_level, 0) as low_stock_level
     FROM item_master im
     LEFT JOIN stock s ON im.id = s.item_id
     GROUP BY im.id
@@ -381,12 +386,20 @@ def get_consolidated_stock() -> List[Tuple]:
     conn.close()
 
     result = []
-    for item_code, name, total_qty, uom, selling_price, low_level in rows:
+    for item_code, name, total_qty, uom, selling_price, vat_percentage, low_level in rows:
         total_qty = float(total_qty or 0)
         low_level = int(low_level or 0)
+        # ensure vat is a float and sensible default
+        try:
+            vat_percentage = float(
+                vat_percentage if vat_percentage is not None else 5.0)
+        except Exception:
+            vat_percentage = 5.0
         is_below = (low_level > 0 and total_qty < low_level)
-        result.append((item_code, name, total_qty, uom,
-                      selling_price, low_level, bool(is_below)))
+        result.append((
+            item_code, name, total_qty, uom,
+            selling_price, vat_percentage, low_level, bool(is_below)
+        ))
     return result
 
 

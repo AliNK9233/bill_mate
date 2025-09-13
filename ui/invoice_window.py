@@ -24,6 +24,19 @@ from models.invoice_model import create_invoice, fetch_invoice
 from utils.pdf_helper import generate_invoice_pdf
 
 
+def _safe_float(v, default=0.0):
+    """Parse v to float safely. Accepts int/float or numeric strings with commas.
+       Returns `default` on failure."""
+    try:
+        return float(v)
+    except Exception:
+        try:
+            s = str(v).replace(",", "").strip()
+            return float(s) if s else float(default)
+        except Exception:
+            return float(default)
+
+
 def on_view_invoice(self):
     row = self.invoice_table.currentRow()
     if row < 0:
@@ -269,38 +282,94 @@ class InvoiceWindow(QWidget):
     def load_item_options(self):
         """
         Build item_lookup mapping and completer options.
-        Completions include "CODE - Name", "CODE", "Name".
+        Completions include "CODE - Name" only (to avoid duplicates).
+        Works with both tuple rows and dict/sqlite3.Row rows.
         """
         self.item_lookup = {}
         completions = set()
+
         try:
             rows = get_consolidated_stock() or []
             for r in rows:
-                code = r[0] if len(r) > 0 else ""
-                name = r[1] if len(r) > 1 else ""
-                total_qty = float(r[2] or 0)
-                uom = r[3] if len(r) > 3 else ""
-                price = float(r[4] or 0.0)
-                vat = float(r[5]) if len(r) > 5 and isinstance(
-                    r[5], (int, float)) else 5.0
+                # support mapping-like rows (sqlite3.Row or dict) first
+                if hasattr(r, "get"):
+                    # common key names, try several variants for robustness
+                    code = r.get("item_code") or r.get(
+                        "code") or r.get("item") or ""
+                    name = r.get("name") or r.get(
+                        "item_name") or r.get("description") or ""
+                    total_qty = _safe_float(
+                        r.get("total_qty") or r.get("quantity") or 0)
+                    uom = r.get("uom") or ""
+                    price = _safe_float(r.get("selling_price") or r.get(
+                        "price") or r.get("rate") or 0.0)
+                    # prefer explicit vat keys
+                    vat = _safe_float(
+                        r.get("vat_percentage") or r.get(
+                            "vat") or r.get("vat_pct") or 5.0,
+                        5.0
+                    )
+                else:
+                    # sequence/tuple row: use documented order from get_consolidated_stock()
+                    # (item_code, name, total_qty, uom, selling_price, vat_percentage, low_level, is_below)
+                    code = r[0] if len(r) > 0 else ""
+                    name = r[1] if len(r) > 1 else ""
+                    total_qty = _safe_float(r[2] if len(r) > 2 else 0)
+                    uom = r[3] if len(r) > 3 else ""
+                    price = _safe_float(r[4] if len(r) > 4 else 0.0)
+                    # VAT: prefer index 5, fallback to 4, else default 5.0
+                    if len(r) > 5:
+                        vat = _safe_float(r[5], 5.0)
+                    elif len(r) > 4:
+                        vat = _safe_float(r[4], 5.0)
+                    else:
+                        vat = 5.0
+
+                # skip items with no available qty
                 if total_qty <= 0:
                     continue
-                info = {"code": code, "name": name, "qty": total_qty,
-                        "uom": uom, "rate": price, "vat": vat}
-                # store lookups:
-                # allow direct code lookup
-                self.item_lookup[code] = info
+
+                info = {
+                    "code": str(code),
+                    "name": str(name),
+                    "qty": total_qty,
+                    "uom": str(uom),
+                    "rate": price,
+                    "vat": vat
+                }
+
+                # store lookups: code and "CODE - Name"
+                try:
+                    self.item_lookup[str(code)] = info
+                except Exception:
+                    pass
+
                 key_combo = f"{code} - {name}"
-                # allow "CODE - Name" lookup
-                self.item_lookup[key_combo] = info
-                # do NOT add bare code or bare name to completions -> prevents duplicates
+                try:
+                    self.item_lookup[key_combo] = info
+                except Exception:
+                    pass
+
+                # add only "CODE - Name" to completions (avoids duplicate bare names/codes)
                 completions.add(key_combo)
+
         except Exception:
+            # keep silent on DB/parse errors, but ensure structure remains usable
             pass
 
+        # attach completer to search widget (defensive)
         try:
             completer = QCompleter(sorted(list(completions)))
-            completer.setCaseSensitivity(False)
+            # previous code used False; prefer Qt case-insensitivity if available
+            try:
+                from PyQt5.QtCore import Qt
+                completer.setCaseSensitivity(Qt.CaseInsensitive)
+            except Exception:
+                # fallback to older boolean usage (if it works in your environment)
+                try:
+                    completer.setCaseSensitivity(False)
+                except Exception:
+                    pass
             self.item_search.setCompleter(completer)
         except Exception:
             pass
