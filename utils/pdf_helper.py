@@ -420,23 +420,66 @@ def generate_invoice_pdf(invoice_no: str,
 
         # items table
         table_data = [["Sl No.", "Part No", "Description",
-                       "Qty", "Rate", "Tax %", "Tax", "Amount"]]
+                       "Qty", "Rate", "Unit", "Tax %", "Tax", "Amount"]]
+
+        # paragraph style for description that wraps nicely
+        desc_style = styles.get(
+            "MetaValue") if "MetaValue" in styles else styles["Normal"]
+
         for idx, it in enumerate(items, start=1):
             part_no = it.get("item_code") or ""
-            desc = it.get("item_name") or ""
+            desc_text = it.get("item_name") or ""
+            # use Paragraph so long descriptions wrap to next line (no mid-word breaks)
+            desc_para = Paragraph(desc_text.replace("\n", "<br/>"), desc_style)
+
             qty = _num(it.get("quantity"))
             rate = _num(it.get("rate"))
+
+            # UOM should be shown as text, not numeric. Prefer original string value.
+            uom_raw = it.get("uom")
+            if uom_raw is None:
+                uom_display = ""
+            else:
+                # keep as string (avoid formatting as float)
+                uom_display = str(uom_raw)
+
             vat_pct = _num(it.get("vat_percentage"))
             vat_amt = _num(it.get("vat_amount"))
             line_amount = _num(it.get("net_amount"))
-            table_data.append([idx, part_no, desc, int(qty) if float(qty).is_integer(
-            ) else qty, f"{rate:,.2f}", f"{int(vat_pct)}%", f"{vat_amt:,.2f}", f"{line_amount:,.2f}"])
 
-        col_widths = [1.0*cm, 2.2*cm, 6.0*cm,
-                      1.0*cm, 2.0*cm, 1.8*cm, 2.0*cm, 2.0*cm]
+            # Format numbers; show integer qty as integer, otherwise decimal
+            qty_display = int(qty) if float(qty).is_integer() else f"{qty:g}"
+
+            table_data.append([
+                idx,
+                part_no,
+                desc_para,                    # Paragraph for wrapping
+                qty_display,
+                f"{rate:,.2f}",
+                uom_display,                  # plain string
+                f"{int(vat_pct)}%",
+                f"{vat_amt:,.2f}",
+                f"{line_amount:,.2f}"
+            ])
+
+        # adjust column widths: give Description more room, Unit smaller
+        col_widths = [
+            1.0*cm,   # Sl No
+            2.2*cm,   # Part No
+            7.0*cm,   # Description (increased)
+            1.2*cm,   # Qty
+            2.0*cm,   # Rate
+            1.2*cm,   # Unit (UOM)
+            1.0*cm,   # Tax %
+            1.5*cm,   # Tax
+            3.0*cm    # Amount
+        ]
+
         tbl = Table(table_data, colWidths=col_widths, repeatRows=1)
         tbl_style = TableStyle([
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, 0), 9),     # header slightly larger
+            ("FONTSIZE", (0, 1), (-1, -1), 8),    # body smaller
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F0F3F7")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
             ("ALIGN", (3, 1), (-1, -1), "RIGHT"),

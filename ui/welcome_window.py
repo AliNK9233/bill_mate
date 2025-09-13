@@ -1,192 +1,268 @@
 # ui/welcome_window.py
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
-    QListWidget, QListWidgetItem, QFrame, QSizePolicy
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QSizePolicy, QSpacerItem,
+    QGraphicsDropShadowEffect
 )
-from PyQt5.QtGui import QPixmap, QFont, QIcon
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QPixmap, QFont, QColor
+from PyQt5.QtCore import Qt
 import os
+import sqlite3
+from contextlib import closing
+from models import invoice_model as invoice_model
 
 
 class WelcomeWindow(QWidget):
     """
-    Simple welcome/splash window for the app.
-    Emits signals when user chooses to continue or selects a quick action.
+    Improved customer-facing welcome splash:
+     - centered card with shadow that blends with pale background
+     - larger fonts and better spacing for good screen ratio
+     - company data (logo/name/address) loaded from company_profile (id=1)
+     - footer bottom-right with developer & version info
     """
-    # emitted when user presses Start. Payload: chosen starting_tab (str)
-    startRequested = pyqtSignal(str)
-    # emitted when user clicks a quick action from the list. Payload: action_key (str)
-    quickActionRequested = pyqtSignal(str)
 
-    def __init__(self, parent=None, app_name="BillMate", version="v1.0.0", logo_path="data/logos/billmate_logo.png", tagline="Simple invoicing & stock"):
+    def __init__(self, parent=None, default_logo_path="data/logos/c_logo.png"):
         super().__init__(parent)
-        self.app_name = app_name
-        self.version = version
-        self.logo_path = logo_path
-        self.tagline = tagline
+        self.default_logo_path = default_logo_path
+        self.cp = self._get_company_profile()
 
-        self.setWindowTitle(f"{self.app_name} — Welcome")
-        # small default geometry — caller can resize or use in a main window layout
-        self.setFixedSize(720, 420)
+        # derive displayed values (safe defaults)
+        self.company_name = (self.cp.get("company_name")
+                             or "Bill Mate").strip()
+        # address assembly
+        addr_parts = []
+        if (self.cp.get("address_line1") or "").strip():
+            addr_parts.append(self.cp.get("address_line1").strip())
+        if (self.cp.get("address_line2") or "").strip():
+            addr_parts.append(self.cp.get("address_line2").strip())
+        city = (self.cp.get("city") or "").strip()
+        state = (self.cp.get("state") or "").strip()
+        country = (self.cp.get("country") or "").strip()
+        loc = " ".join(p for p in (city, state, country) if p)
+        if loc:
+            addr_parts.append(loc)
+        contact_parts = []
+        if (self.cp.get("email") or "").strip():
+            contact_parts.append(self.cp.get("email").strip())
+        if (self.cp.get("phone1") or "").strip():
+            contact_parts.append(self.cp.get("phone1").strip())
+        if contact_parts:
+            addr_parts.append(" | ".join(contact_parts))
+        self.company_address = "\n".join(addr_parts)
+
+        # logo path from DB if present
+        self.logo_path = (self.cp.get("logo_path") or self.default_logo_path)
+
+        # quote (use DB field if present; else use user-specified quote)
+        self.quote = (self.cp.get("quote")
+                      or "Trading Trust, Nourishing the Emirates").strip()
+
+        # footer info
+        self.app_name = "Bill Mate"
+        self.app_version = "0"
+        self.powered_by = "Averra"
+        self.catch_line = "Your digital partner."
+
+        # window tuning
+        self.setWindowTitle(self.company_name)
+        # don't fix to too small - keep resizable but a reasonable minimum
+        self.setMinimumSize(1100, 700)
+
         self._setup_ui()
 
+    def _get_company_profile(self):
+        """Return single-row company_profile as a dict or empty dict on failure."""
+        try:
+            conn = invoice_model._connect()
+            conn.row_factory = sqlite3.Row
+            with closing(conn):
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT * FROM company_profile WHERE id = 1 LIMIT 1")
+                r = cur.fetchone()
+                if not r:
+                    return {}
+                return {k: (r[k] if k in r.keys() else None) for k in r.keys()}
+        except Exception:
+            return {}
+
     def _setup_ui(self):
+        # overall root layout (this stretches to the entire window)
         root = QVBoxLayout()
-        root.setContentsMargins(18, 18, 18, 18)
-        root.setSpacing(12)
+        root.setContentsMargins(20, 20, 20, 20)
+        root.setSpacing(0)
         self.setLayout(root)
 
-        # Top area: logo + name
-        top = QHBoxLayout()
-        top.setSpacing(12)
+        # set soft page background to blend with white card
+        self.setStyleSheet("""
+            QWidget#wrapper { background: #f4f7fb; }
+        """)
+        self.setObjectName("wrapper")
 
+        # center container (vertical) - we use spacers to center the card
+        center_vbox = QVBoxLayout()
+        center_vbox.setContentsMargins(0, 0, 0, 0)
+        center_vbox.setSpacing(0)
+
+        # top spacer (push card to vertical center)
+        center_vbox.addSpacerItem(QSpacerItem(
+            20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        # Card frame - white rounded with shadow
+        card = QFrame()
+        card.setObjectName("card")
+        card.setStyleSheet("""
+            QFrame#card {
+                background: #ffffff;
+                border-radius: 12px;
+            }
+        """)
+        # add drop shadow effect
+        shadow = QGraphicsDropShadowEffect(card)
+        shadow.setBlurRadius(22)
+        shadow.setXOffset(0)
+        shadow.setYOffset(6)
+        shadow.setColor(QColor(0, 0, 0, 30))
+        card.setGraphicsEffect(shadow)
+        card.setContentsMargins(18, 18, 18, 18)
+
+        # card layout
+        card_layout = QHBoxLayout()
+        card_layout.setContentsMargins(30, 30, 30, 30)
+        card_layout.setSpacing(30)
+        card.setLayout(card_layout)
+
+        # Left: Logo (larger)
         logo_lbl = QLabel()
-        logo_lbl.setFixedSize(120, 120)
+        logo_lbl.setFixedSize(220, 220)
         logo_lbl.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        logo_lbl.setStyleSheet("background:transparent;")
         if os.path.exists(self.logo_path):
             try:
                 pix = QPixmap(self.logo_path).scaled(
-                    120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    220, 220, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 logo_lbl.setPixmap(pix)
+                logo_lbl.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             except Exception:
-                logo_lbl.setText("")  # fallback: leave blank
+                logo_lbl.setText("")
         else:
-            # placeholder box with app initials
             logo_lbl.setStyleSheet(
-                "background:#efefef;border:1px solid #ddd;border-radius:10px;color:#444;")
+                "background:#ffffff;border:1px solid #eee;border-radius:12px;color:#666;")
             logo_lbl.setAlignment(Qt.AlignCenter)
             initials = "".join([p[0]
-                               for p in self.app_name.split()[:2]]).upper()
+                               for p in self.company_name.split()[:2]]).upper()
             logo_lbl.setText(initials)
-            logo_lbl.setFont(QFont("Segoe UI", 32, QFont.Bold))
+            logo_lbl.setFont(QFont("Segoe UI", 48, QFont.Bold))
 
-        top.addWidget(logo_lbl, alignment=Qt.AlignLeft | Qt.AlignVCenter)
+        card_layout.addWidget(logo_lbl, alignment=Qt.AlignLeft | Qt.AlignTop)
 
-        meta = QVBoxLayout()
-        name_lbl = QLabel(self.app_name)
-        name_lbl.setFont(QFont("Segoe UI", 20, QFont.Bold))
-        meta.addWidget(name_lbl)
+        # Middle: Company details
+        middle = QVBoxLayout()
+        middle.setSpacing(10)
 
-        ver_lbl = QLabel(self.version)
-        ver_lbl.setFont(QFont("Segoe UI", 9))
-        ver_lbl.setStyleSheet("color: #666;")
-        meta.addWidget(ver_lbl)
+        # Company name - big
+        name_lbl = QLabel(self.company_name.upper())
+        name_lbl.setWordWrap(True)
+        name_font = QFont("Segoe UI", 48, QFont.Bold)
+        name_lbl.setFont(name_font)
+        name_lbl.setStyleSheet("color: #111;")
+        middle.addWidget(name_lbl, alignment=Qt.AlignLeft)
 
-        desc_lbl = QLabel(self.tagline)
-        desc_lbl.setFont(QFont("Segoe UI", 10))
-        desc_lbl.setStyleSheet("color: #333;")
-        desc_lbl.setWordWrap(True)
-        meta.addWidget(desc_lbl)
+        # Address - comfortable size
+        if self.company_address:
+            addr_lbl = QLabel(self.company_address)
+            addr_lbl.setWordWrap(True)
+            addr_lbl.setFont(QFont("Segoe UI", 14))
+            addr_lbl.setStyleSheet("color:#444;")
+            middle.addWidget(addr_lbl, alignment=Qt.AlignLeft)
 
-        meta.addStretch()
+        # Quote - prominent and colored
+        quote_lbl = QLabel(f"“{self.quote}”")
+        quote_lbl.setWordWrap(True)
+        quote_lbl.setFont(QFont("Segoe UI", 20, QFont.StyleItalic))
+        quote_lbl.setStyleSheet("color: #1f7a74;")
+        middle.addWidget(quote_lbl, alignment=Qt.AlignLeft)
 
-        top.addLayout(meta)
-        top.addStretch()
-        root.addLayout(top)
+        # small spacer to push content up inside card if card is large
+        middle.addSpacerItem(QSpacerItem(
+            20, 10, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        card_layout.addLayout(middle, stretch=2)
 
-        # horizontal separator
-        sep = QFrame()
-        sep.setFrameShape(QFrame.HLine)
-        sep.setFrameShadow(QFrame.Sunken)
-        root.addWidget(sep)
+        # Right: empty area or future content (keeps card balanced)
+        right_spacer = QVBoxLayout()
+        right_spacer.addSpacerItem(QSpacerItem(
+            40, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
+        card_layout.addLayout(right_spacer, stretch=1)
 
-        # Middle area: Starting tab selector + quick actions
-        mid = QHBoxLayout()
-        mid.setSpacing(18)
+        # Add card to center layout (constrain width for better reading)
+        # We'll put the card inside a small wrapper to limit max width (so the card doesn't stretch full width)
+        card_wrapper = QHBoxLayout()
+        card_wrapper.addSpacerItem(QSpacerItem(
+            40, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
+        card_wrapper.addWidget(card, stretch=0)
+        card_wrapper.addSpacerItem(QSpacerItem(
+            40, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
 
-        # left: starting tab selector
-        left = QVBoxLayout()
-        left.addWidget(QLabel("Start with:"))
-        self.start_combo = QComboBox()
-        self.start_combo.addItems(
-            ["Invoices", "New Invoice", "Delivery Note", "Sales Report", "Stock"])
-        left.addWidget(self.start_combo)
+        center_vbox.addLayout(card_wrapper)
 
-        # helpful short explanation
-        left_hint = QLabel(
-            "Choose where to start. You can change this later from Settings.")
-        left_hint.setWordWrap(True)
-        left_hint.setStyleSheet("color: #666; font-size: 11px;")
-        left.addWidget(left_hint)
-        left.addStretch()
+        # bottom spacer to keep centered
+        center_vbox.addSpacerItem(QSpacerItem(
+            20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
-        mid.addLayout(left, stretch=1)
+        # add center_vbox into root
+        root.addLayout(center_vbox)
 
-        # right: quick actions list
-        right = QVBoxLayout()
-        right.addWidget(QLabel("Quick actions:"))
+        # Footer area anchored to bottom-right (developer & version info)
+        footer_layout = QHBoxLayout()
+        footer_layout.setContentsMargins(20, 8, 20, 12)
 
-        self.quick_list = QListWidget()
-        # action key in item.data(Qt.UserRole) — main app can decide what to do with them
-        self._add_quick_action("new_invoice", "Create New Invoice")
-        self._add_quick_action("search_invoice", "Search / Open Invoice")
-        self._add_quick_action("view_sales", "View Sales Report")
-        self._add_quick_action("stock_mgmt", "Open Stock Manager")
-        self._add_quick_action("settings", "Open Settings")
-        self.quick_list.itemClicked.connect(self._on_quick_click)
-        right.addWidget(self.quick_list)
-        mid.addLayout(right, stretch=1)
+        left_footer = QLabel(f"© {self.company_name} {self._year()}")
+        left_footer.setFont(QFont("Segoe UI", 11))
+        left_footer.setStyleSheet("color:#8a8a8a;")
+        footer_layout.addWidget(left_footer, alignment=Qt.AlignLeft)
 
-        root.addLayout(mid)
+        footer_layout.addSpacerItem(QSpacerItem(
+            20, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
 
-        # bottom area: footer + start button
-        bottom = QHBoxLayout()
-        bottom.setSpacing(12)
+        # Right block
+        right_block = QVBoxLayout()
+        right_block.setSpacing(2)
 
-        copyright_lbl = QLabel(
-            f"© {self.app_name} {(str(self._year()))} — Version {self.version}")
-        copyright_lbl.setStyleSheet("color:#888;")
-        bottom.addWidget(copyright_lbl)
-        bottom.addStretch()
+        app_lbl = QLabel(f"{self.app_name} — App version {self.app_version}")
+        app_lbl.setFont(QFont("Segoe UI", 12, QFont.DemiBold))
+        app_lbl.setStyleSheet("color:#333;")
+        right_block.addWidget(app_lbl, alignment=Qt.AlignRight)
 
-        self.btn_start = QPushButton("Start")
-        self.btn_start.setFixedWidth(140)
-        self.btn_start.setToolTip("Open the application")
-        self.btn_start.clicked.connect(self._on_start)
-        bottom.addWidget(self.btn_start)
+        powered_lbl = QLabel(f"Powered by {self.powered_by}")
+        powered_lbl.setFont(QFont("Segoe UI", 11))
+        powered_lbl.setStyleSheet("color:#666;")
+        right_block.addWidget(powered_lbl, alignment=Qt.AlignRight)
 
-        self.btn_quit = QPushButton("Quit")
-        self.btn_quit.setFixedWidth(90)
-        self.btn_quit.clicked.connect(self.close)
-        bottom.addWidget(self.btn_quit)
+        catch_lbl = QLabel(self.catch_line)
+        catch_lbl.setFont(QFont("Segoe UI", 12, QFont.StyleItalic))
+        catch_lbl.setStyleSheet("color:#1f7a74;")
+        right_block.addWidget(catch_lbl, alignment=Qt.AlignRight)
 
-        root.addLayout(bottom)
+        footer_layout.addLayout(right_block)
 
-        # small style polish
-        self.setStyleSheet("""
-            QWidget { background: #ffffff; }
-            QListWidget { border: 1px solid #ddd; }
-            QPushButton { padding: 8px 10px; }
+        # attach footer to root (keeps at bottom)
+        root.addLayout(footer_layout)
+
+        # final stylesheet to ensure page blends cleanly
+        self.setStyleSheet(self.styleSheet() + """
+            QWidget#wrapper { background: #f4f7fb; }
+            QFrame#card { background: #ffffff; border: 1px solid rgba(0,0,0,0.04); }
         """)
-
-    def _add_quick_action(self, key: str, label: str):
-        item = QListWidgetItem(label)
-        item.setData(Qt.UserRole, key)
-        self.quick_list.addItem(item)
-
-    def _on_quick_click(self, item: QListWidgetItem):
-        key = item.data(Qt.UserRole)
-        # emit the action so caller can open the correct window
-        self.quickActionRequested.emit(key)
-
-    def _on_start(self):
-        tab = str(self.start_combo.currentText() or "Invoices")
-        self.startRequested.emit(tab)
 
     def _year(self):
         import datetime
         return datetime.date.today().year
 
 
-# Quick run/debug UI
+# debug-run
 if __name__ == "__main__":
     import sys
     from PyQt5.QtWidgets import QApplication
     app = QApplication(sys.argv)
-    w = WelcomeWindow(app_name="BillMate", version="v1.3.2",
-                      tagline="Invoices • Stock • Sales")
-    # connect signals for demonstration
-    w.startRequested.connect(lambda t: print("Start requested ->", t))
-    w.quickActionRequested.connect(lambda a: print("Quick action ->", a))
+    w = WelcomeWindow()
     w.show()
     sys.exit(app.exec_())

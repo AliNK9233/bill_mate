@@ -24,6 +24,17 @@ except Exception:
     get_consolidated_stock = None
     get_latest_item_details_by_code = None
 
+# customer & salesman lookup helpers
+try:
+    from models.customer_model import get_all_customers
+except Exception:
+    get_all_customers = None
+
+try:
+    from models.salesman_model import get_all_salesmen
+except Exception:
+    get_all_salesmen = None
+
 # pdf helper (optional)
 try:
     from utils.delivery_pdf import generate_delivery_note_pdf
@@ -44,7 +55,7 @@ def fmt_qty(q):
 class DeliveryNoteWindow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Prepare Delivery Note")
+        self.setWindowTitle("Delivery Note / Pick List")
         self.setWindowIcon(QIcon("data/logos/billmate_logo.png"))
         self.setGeometry(220, 120, 900, 640)
 
@@ -83,11 +94,26 @@ class DeliveryNoteWindow(QWidget):
         inv_row = QHBoxLayout()
         inv_row.addWidget(QLabel("Invoice No:"))
         self.input_invoice_no = QLineEdit()
+        self.input_invoice_no.setPlaceholderText(
+            "Enter invoice number and press Enter or click Load")
         inv_row.addWidget(self.input_invoice_no)
         self.btn_load_invoice = QPushButton("Load Invoice")
         # connect properly
         self.btn_load_invoice.clicked.connect(self.load_invoice)
         inv_row.addWidget(self.btn_load_invoice)
+
+        # bind Enter key in invoice field to loading
+        self.input_invoice_no.returnPressed.connect(self.load_invoice)
+
+        # Import Items button (copies invoice items into inline list for editing)
+        self.btn_import_items = QPushButton("Import Items")
+        self.btn_import_items.setToolTip(
+            "Import fetched invoice items into inline list for editing")
+        self.btn_import_items.clicked.connect(
+            self._import_invoice_items_to_inline)
+        self.btn_import_items.setEnabled(False)
+        inv_row.addWidget(self.btn_import_items)
+
         inv_row.addStretch()
         root.addLayout(inv_row)
 
@@ -155,6 +181,7 @@ class DeliveryNoteWindow(QWidget):
         link_mode = self.rb_link.isChecked()
         self.input_invoice_no.setEnabled(link_mode)
         self.btn_load_invoice.setEnabled(link_mode)
+        self.btn_import_items.setEnabled(False)
         if not link_mode:
             self.current_invoice_no = None
             self.linked_header = None
@@ -172,7 +199,7 @@ class DeliveryNoteWindow(QWidget):
             try:
                 rows = get_consolidated_stock() or []
                 for r in rows:
-                    # r: (item_code, name, total_qty, uom, selling_price, low_level, is_below)
+                    # r: (item_code, name, total_qty, uom, selling_price, vat_percentage, low_stock_level, is_below)
                     try:
                         item_code = r[0] or ""
                         name = r[1] or ""
@@ -182,7 +209,6 @@ class DeliveryNoteWindow(QWidget):
                         continue
                     display = f"{item_code} - {name}" if item_code else str(
                         name)
-                    # optionally include available qty in display — keep concise
                     entries.append(display)
                     self._inline_item_map[display] = {
                         "item_code": item_code,
@@ -224,14 +250,11 @@ class DeliveryNoteWindow(QWidget):
                 return default
             # mapping-like
             try:
-                if hasattr(row_or_dict, "keys") or hasattr(row_or_dict, "get"):
+                if hasattr(row_or_dict, "get"):
                     for c in candidates:
                         try:
                             if isinstance(c, str):
-                                if hasattr(row_or_dict, "get"):
-                                    v = row_or_dict.get(c)
-                                else:
-                                    v = row_or_dict[c] if c in row_or_dict else None
+                                v = row_or_dict.get(c)
                             else:
                                 v = None
                         except Exception:
@@ -257,14 +280,69 @@ class DeliveryNoteWindow(QWidget):
 
         inv_display = _get_field_generic(
             header, ["invoice_no", "inv_no", 1, 0], default=inv_no)
-        sp = _get_field_generic(header, [
-                                "salesman_name", "sales_person", "salesperson", "salesman", 18, 17], default="")
-        bill_to = _get_field_generic(
-            header, ["bill_to", "bill_to_display", "customer_name", 4, 3], default="")
+
+        # Sales person: prefer header-provided salesman_name, else try to find via salesman_id
+        salesperson_name = _get_field_generic(
+            header, ["salesman_name", "sales_person", "salesperson", "salesman", "salesman_name"], default="")
+        # try get salesman id (could be int or string)
+        salesman_id = _get_field_generic(
+            header, ["salesman_id", "salesman", "sales_person_id", 17, 18], default="")
+
+        # Bill to: prefer bill_to label, else customer_id / customer_name / customer
+        bill_to_raw = _get_field_generic(header, [
+                                         "bill_to", "bill_to_display", "customer_name", "customer", "customer_id", 4, 3], default="")
+
+        # Try to enhance salesperson info with phone lookup
+        salesperson_display = salesperson_name or ""
+        try:
+            if get_all_salesmen and not salesperson_display:
+                # if salesman_id given try to find matching, or fallback to name match
+                for s in get_all_salesmen() or []:
+                    # s typical: (id, name, phone, email, ...)
+                    sid = s[0] if len(s) > 0 else None
+                    sname = s[1] if len(s) > 1 else ""
+                    sphone = s[2] if len(s) > 2 else ""
+                    if str(sid) == str(salesman_id) or (sname and sname.lower() == str(salesperson_name).lower()):
+                        salesperson_display = f"{sname} ({sphone})" if sphone else sname
+                        break
+            else:
+                # if header already had a name and we have salesman list, try to find phone
+                if get_all_salesmen and salesperson_display:
+                    for s in get_all_salesmen() or []:
+                        sname = s[1] if len(s) > 1 else ""
+                        sphone = s[2] if len(s) > 2 else ""
+                        if sname and sname.lower() == str(salesperson_name).lower():
+                            salesperson_display = f"{sname} ({sphone})" if sphone else sname
+                            break
+        except Exception:
+            pass
+
+        # Try to enhance bill_to with customer phone/name lookup
+        billto_display = str(bill_to_raw or "")
+        try:
+            if get_all_customers:
+                for c in get_all_customers() or []:
+                    # c typical: (code_or_id, name, ... phone maybe)
+                    # try several positions for code/name/phone
+                    ccode = c[0] if len(c) > 0 else None
+                    cname = c[1] if len(c) > 1 else ""
+                    # phone could be at index 2 or beyond depending on your schema
+                    cphone = None
+                    if len(c) > 2:
+                        # attempt to find something that looks like phone
+                        maybe = str(c[2])
+                        if any(ch.isdigit() for ch in maybe):
+                            cphone = maybe
+                    # match header bill_to against code or name
+                    if str(bill_to_raw) and (str(bill_to_raw) == str(ccode) or str(bill_to_raw).lower() == str(cname).lower()):
+                        billto_display = f"{cname} ({cphone})" if cphone else cname
+                        break
+        except Exception:
+            pass
 
         self.lbl_invoice_display.setText(str(inv_display or "-"))
-        self.lbl_salesperson_display.setText(str(sp or "-"))
-        self.lbl_bill_to_display.setText(str(bill_to or "-"))
+        self.lbl_salesperson_display.setText(str(salesperson_display or "-"))
+        self.lbl_bill_to_display.setText(str(billto_display or "-"))
 
         # normalize items
         norm_items = []
@@ -273,24 +351,61 @@ class DeliveryNoteWindow(QWidget):
                 code = it.get("item_code") or it.get("code") or ""
                 name = it.get("item_name") or it.get(
                     "item") or it.get("name") or ""
-                uom = it.get("uom") or ""
+                uom = it.get("uom") or it.get("unit") or ""
                 try:
                     qty = float(it.get("quantity") or it.get("qty") or 0)
                 except Exception:
                     qty = 0.0
             else:
-                row = list(it) + [None] * 10
-                code = row[3] or ""
-                name = row[4] or ""
+                # best effort: many invoice row shapes exist; try to extract common positions
+                row = list(it) + [None] * 12
+                # attempts: item_code often at 3, name at 4, uom at 5, qty at 7 or 6 depending on shape
+                code = row[3] or row[2] or row[1] or ""
+                name = row[4] or row[3] or ""
                 uom = row[5] or ""
                 try:
-                    qty = float(row[7] or 0)
+                    qty = float(row[7] or row[6] or row[4] or 0)
                 except Exception:
                     qty = 0.0
             norm_items.append({"item_code": str(code), "item_name": str(
                 name), "uom": str(uom), "qty": qty})
+
         self.items = norm_items
         self._refresh_table()
+
+        # enable import items button when invoice loaded
+        self.btn_import_items.setEnabled(bool(self.items))
+
+    def _import_invoice_items_to_inline(self):
+        """Copy loaded invoice items into the inline controls so user can edit before printing."""
+        if not self.items:
+            QMessageBox.information(
+                self, "No items", "No invoice items to import.")
+            return
+        # clear current inline list and add invoice items
+        self.inline_combo.clear()
+        self._inline_item_map.clear()
+        entries = []
+        for it in self.items:
+            display = f"{it.get('item_code') or ''} - {it.get('item_name') or ''}".strip(" -")
+            entries.append(display)
+            self._inline_item_map[display] = {
+                "item_code": it.get("item_code"),
+                "item_name": it.get("item_name"),
+                "uom": it.get("uom"),
+                "total_qty": float(it.get("qty") or 0)
+            }
+        if entries:
+            self.inline_combo.addItems(entries)
+            # also populate the inline list (items) for printing/editing
+            # keep same items but allow editing
+            self.items = [dict(it) for it in self.items]
+            self._refresh_table()
+            QMessageBox.information(
+                self, "Imported", f"Imported {len(entries)} items into inline list.")
+        else:
+            QMessageBox.information(
+                self, "No items", "No suitable items found to import.")
 
     def _refresh_table(self):
         self.table.setRowCount(0)
@@ -450,13 +565,7 @@ class DeliveryNoteWindow(QWidget):
                 QMessageBox.warning(
                     self, "PDF helper failed", f"Helper raised error: {e}\nFalling back (if available).")
 
-        # fallback minimal writer: try reportlab inline (very small fallback)
-        try:
-            # simple fallback uses generate_delivery_note_pdf if present; we've already tried it.
-            # To keep this file concise we ask user to install reportlab or implement helper.
-            QMessageBox.information(
-                self, "PDF helper missing", "Please implement utils.delivery_pdf.generate_delivery_note_pdf or install reportlab and re-run.")
-            return
-        except Exception as e:
-            QMessageBox.warning(self, "Failed", f"Failed to generate PDF: {e}")
-            return
+        # fallback minimal writer: ask user to implement helper or install reportlab
+        QMessageBox.information(
+            self, "PDF helper missing", "Please implement utils.delivery_pdf.generate_delivery_note_pdf or install reportlab and re-run.")
+        return

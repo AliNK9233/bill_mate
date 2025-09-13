@@ -24,13 +24,11 @@ def _parse_date_to_dateobj(s):
     if not s:
         return None
 
-    # If already a date / datetime, return a date
     if isinstance(s, (datetime.date, datetime.datetime)):
         return s.date() if isinstance(s, datetime.datetime) else s
 
     s = str(s).strip()
 
-    # Common formats to try (add any other patterns your DB uses)
     fmts = (
         "%Y-%m-%d",
         "%Y-%m-%d %H:%M:%S",
@@ -48,7 +46,6 @@ def _parse_date_to_dateobj(s):
         except Exception:
             pass
 
-    # final fallback: try date.fromisoformat()
     try:
         return datetime.date.fromisoformat(s)
     except Exception:
@@ -69,32 +66,24 @@ def _format_display_date_for_table(dt):
     if not dt:
         return ""
 
-    # e.g. '05-Aug-2025'
     return dt.strftime("%d-%b-%Y")
 
 
 def _format_created_at_display(s):
     """
     Format created_at (which may include time) as 'DD-MMM-YYYY hh:mm AM/PM'.
-    Accepts:
-      - a datetime or date object
-      - various strings (ISO, 'YYYY-MM-DD HH:MM:SS', with optional fractional seconds or timezone)
-    Returns the original input as string when parsing fails.
+    Accepts datetime/date or parseable strings.
     """
     if not s:
         return ""
 
-    # If already a datetime
     if isinstance(s, datetime.datetime):
         return s.strftime("%d-%b-%Y %I:%M %p")
-    # If it's a date (no time), combine with midnight
     if isinstance(s, datetime.date):
         dt = datetime.datetime.combine(s, datetime.time.min)
         return dt.strftime("%d-%b-%Y %I:%M %p")
 
     s = str(s).strip()
-
-    # Try several datetime formats (including timezone-aware)
     fmts = (
         "%Y-%m-%d %H:%M:%S",
         "%Y-%m-%d %H:%M:%S.%f",
@@ -112,14 +101,12 @@ def _format_created_at_display(s):
         except Exception:
             pass
 
-    # As a last attempt, if the string looks like an ISO date, try fromisoformat()
     try:
         dt = datetime.datetime.fromisoformat(s)
         return dt.strftime("%d-%b-%Y %I:%M %p")
     except Exception:
         pass
 
-    # give up and return original
     return s
 
 
@@ -130,15 +117,14 @@ class AdminStockWindow(QWidget):
         self.setGeometry(200, 100, 1200, 700)
         self.setWindowIcon(QIcon("data/logos/billmate_logo.png"))
 
-        # Ensure DB initialized (safe)
         try:
             init_db()
         except Exception:
             pass
 
         self.showing_low_stock_only = False
-        self.consolidated = []  # cached master rows
-        self.batches = []  # cached current item's batches
+        self.consolidated = []
+        self.batches = []
 
         self.setup_ui()
         self.load_master_table()
@@ -148,7 +134,6 @@ class AdminStockWindow(QWidget):
         layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(6)
 
-        # Compact Title + toolbar row
         top_row = QHBoxLayout()
         top_row.setSpacing(8)
 
@@ -159,7 +144,6 @@ class AdminStockWindow(QWidget):
         title_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         top_row.addWidget(title_label)
 
-        # toolbar (compact) - Add Item + Edit Master + Edit Batch + Export + Low stock toggle
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("🔍 Search Item code or name...")
         self.search_input.textChanged.connect(self.filter_master_table)
@@ -189,12 +173,10 @@ class AdminStockWindow(QWidget):
         self.low_stock_btn.setFixedHeight(28)
         self.low_stock_btn.clicked.connect(self.toggle_low_stock_view)
 
-        # New: Refresh All (refresh master and batches)
         self.refresh_all_btn = QPushButton("🔄 Refresh All")
         self.refresh_all_btn.setFixedHeight(28)
         self.refresh_all_btn.clicked.connect(self.refresh_all)
 
-        # pack toolbar items on the right
         top_row.addWidget(self.search_input, 0, Qt.AlignRight)
         top_row.addWidget(self.add_item_btn)
         top_row.addWidget(self.edit_master_btn)
@@ -206,17 +188,14 @@ class AdminStockWindow(QWidget):
 
         layout.addLayout(top_row)
 
-        # Splitter: left = master table, right = batches + info
         splitter = QSplitter(Qt.Horizontal)
 
-        # Master table (left)
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(6)
 
         self.master_table = QTableWidget()
-        # columns: Item Code, Name, Unit, Sell Price, Available Qty, Low Level, Status
         self.master_table.setColumnCount(7)
         self.master_table.setHorizontalHeaderLabels([
             "Item Code", "Item Name", "Unit", "Sell Price", "Available Qty", "Low Level", "Status"
@@ -230,7 +209,6 @@ class AdminStockWindow(QWidget):
         left_layout.addWidget(self.master_table)
         splitter.addWidget(left_widget)
 
-        # Right side: batches table + quick info
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         right_layout.setContentsMargins(0, 0, 0, 0)
@@ -241,12 +219,10 @@ class AdminStockWindow(QWidget):
         right_layout.addWidget(info_label)
 
         self.batch_table = QTableWidget()
-        # columns: ID, Batch No, Purchase Price, Qty, Expiry Date, Type, Created At
         self.batch_table.setColumnCount(7)
         self.batch_table.setHorizontalHeaderLabels([
             "ID", "Batch No", "Purchase Price", "Qty", "Expiry Date", "Type", "Created At"
         ])
-        # hide internal ID but keep it for edits
         self.batch_table.hideColumn(0)
         self.batch_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.batch_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -255,7 +231,6 @@ class AdminStockWindow(QWidget):
 
         right_layout.addWidget(self.batch_table)
 
-        # Quick actions under batch table
         batch_actions = QHBoxLayout()
         self.reduce_qty_btn = QPushButton("➖ Reduce Qty (simulate billing)")
         self.reduce_qty_btn.clicked.connect(self.reduce_qty_for_selected_batch)
@@ -269,29 +244,31 @@ class AdminStockWindow(QWidget):
 
         splitter.addWidget(right_widget)
 
-        # default stretch
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 1)
         layout.addWidget(splitter)
 
         self.setLayout(layout)
 
-    # -------------------------
-    # Loading / display helpers
-    # -------------------------
     def load_master_table(self):
         """
         Load consolidated stock (master) and populate left table.
-        Uses get_consolidated_stock() which returns rows:
-        (item_code, name, total_qty, uom, selling_price, low_stock_level, is_below)
+        Expects get_consolidated_stock() rows:
+        (item_code, name, total_qty, uom, selling_price, vat_percentage, low_stock_level, is_below)
         """
         try:
             self.master_table.setRowCount(0)
-            self.consolidated = get_consolidated_stock()
+            self.consolidated = get_consolidated_stock() or []
             for row in self.consolidated:
-                item_code, name, total_qty, uom, selling_price, low_level, is_below = row
+                # Unpack according to new shape (8 items)
+                try:
+                    item_code, name, total_qty, uom, selling_price, vat_percentage, low_level, is_below = row
+                except Exception:
+                    # be defensive: try to handle shorter rows
+                    vals = list(row) + [None] * (8 - len(row))
+                    item_code, name, total_qty, uom, selling_price, vat_percentage, low_level, is_below = vals
 
-                # If we're in low-stock-only mode skip others
+                # If low-only mode skip others
                 if self.showing_low_stock_only and not is_below:
                     continue
 
@@ -301,8 +278,8 @@ class AdminStockWindow(QWidget):
                     r, 0, QTableWidgetItem(str(item_code)))
                 self.master_table.setItem(r, 1, QTableWidgetItem(str(name)))
                 self.master_table.setItem(r, 2, QTableWidgetItem(str(uom)))
-                self.master_table.setItem(r, 3, QTableWidgetItem(
-                    f"{float(selling_price):.2f}" if selling_price is not None else "0.00"))
+                sell_text = f"{float(selling_price):.2f}" if selling_price is not None else "0.00"
+                self.master_table.setItem(r, 3, QTableWidgetItem(sell_text))
                 self.master_table.setItem(
                     r, 4, QTableWidgetItem(f"{float(total_qty):.2f}"))
                 self.master_table.setItem(
@@ -310,14 +287,12 @@ class AdminStockWindow(QWidget):
                 status_item = QTableWidgetItem("LOW" if is_below else "OK")
                 self.master_table.setItem(r, 6, status_item)
 
-                # highlight entire row if low
                 if is_below:
                     for c in range(self.master_table.columnCount()):
                         cell = self.master_table.item(r, c)
                         if cell:
                             cell.setBackground(QBrush(QColor(255, 200, 200)))
 
-            # select first row by default and load its batches
             if self.master_table.rowCount() > 0:
                 self.master_table.selectRow(0)
                 first_code = self.master_table.item(0, 0).text()
@@ -330,12 +305,15 @@ class AdminStockWindow(QWidget):
 
     def filter_master_table(self):
         text = self.search_input.text().strip().lower()
-        # naive filtering over self.consolidated
         self.master_table.setRowCount(0)
         for row in self.consolidated:
-            item_code, name, total_qty, uom, selling_price, low_level, is_below = row
+            try:
+                item_code, name, total_qty, uom, selling_price, vat_percentage, low_level, is_below = row
+            except Exception:
+                vals = list(row) + [None] * (8 - len(row))
+                item_code, name, total_qty, uom, selling_price, vat_percentage, low_level, is_below = vals
+
             if text == "" or text in str(item_code).lower() or text in str(name).lower():
-                # skip if low-only mode and not low
                 if self.showing_low_stock_only and not is_below:
                     continue
                 r = self.master_table.rowCount()
@@ -344,8 +322,8 @@ class AdminStockWindow(QWidget):
                     r, 0, QTableWidgetItem(str(item_code)))
                 self.master_table.setItem(r, 1, QTableWidgetItem(str(name)))
                 self.master_table.setItem(r, 2, QTableWidgetItem(str(uom)))
-                self.master_table.setItem(r, 3, QTableWidgetItem(
-                    f"{float(selling_price):.2f}" if selling_price is not None else "0.00"))
+                sell_text = f"{float(selling_price):.2f}" if selling_price is not None else "0.00"
+                self.master_table.setItem(r, 3, QTableWidgetItem(sell_text))
                 self.master_table.setItem(
                     r, 4, QTableWidgetItem(f"{float(total_qty):.2f}"))
                 self.master_table.setItem(
@@ -368,9 +346,8 @@ class AdminStockWindow(QWidget):
     def load_batches_for_item(self, item_code):
         try:
             self.batch_table.setRowCount(0)
-            self.batches = get_all_batches(item_code)
+            self.batches = get_all_batches(item_code) or []
             for b in self.batches:
-                # Expected b: (id, batch_no, purchase_price, quantity, expiry_date, stock_type, created_at, updated_at)
                 b_id = b[0]
                 batch_no = b[1]
                 purchase_price = b[2]
@@ -392,11 +369,9 @@ class AdminStockWindow(QWidget):
                 if float(qty) <= 0:
                     qty_item.setBackground(QBrush(QColor(255, 180, 180)))
                 self.batch_table.setItem(r, 3, qty_item)
-                # show formatted expiry
                 self.batch_table.setItem(
                     r, 4, QTableWidgetItem(expiry_display))
                 self.batch_table.setItem(r, 5, QTableWidgetItem(str(stype)))
-                # show nicely formatted created datetime
                 self.batch_table.setItem(
                     r, 6, QTableWidgetItem(created_display))
         except Exception as e:
@@ -410,16 +385,13 @@ class AdminStockWindow(QWidget):
         self.load_batches_for_item(item_code)
 
     def refresh_all(self):
-        """Refresh both master and currently visible batches."""
         self.load_master_table()
-        # refresh batches for currently selected master row
         cur = self.master_table.currentRow()
         if cur >= 0:
-            self.load_batches_for_item(
-                self.master_table.item(cur, 0).text())
+            self.load_batches_for_item(self.master_table.item(cur, 0).text())
 
     # -------------------------
-    # Actions: Add / Edit master/batch
+    # Add / Edit master / batch
     # -------------------------
     def add_item_dialog(self):
         dialog = QDialog(self)
@@ -441,7 +413,6 @@ class AdminStockWindow(QWidget):
         form.addRow("Per Box Qty:", per_box_input)
         form.addRow("VAT %:", vat_input)
         form.addRow("Selling Price:", sell_input)
-        # HSN removed per request
         form.addRow("Low Stock Level:", low_input)
         form.addRow("Remarks:", remarks_input)
 
@@ -483,7 +454,6 @@ class AdminStockWindow(QWidget):
                 QMessageBox.information(
                     self, "Added", f"✅ Item {code} added (id={item_id}).")
                 self.load_master_table()
-                # try select newly added item
                 for r in range(self.master_table.rowCount()):
                     if self.master_table.item(r, 0).text() == code:
                         self.master_table.selectRow(r)
@@ -501,14 +471,11 @@ class AdminStockWindow(QWidget):
             return
         item_code = self.master_table.item(row, 0).text()
 
-        # fetch full item from model to get all editable columns
         try:
             item = get_item_by_item_code(item_code)
-            # expected dict or tuple; we'll support both
             if isinstance(item, dict):
                 item_obj = item
             else:
-                # assume tuple: (id, item_code, name, uom, per_box_qty, vat_percentage, selling_price, remarks, low_stock_level, ...)
                 item_obj = {
                     "item_code": item[1],
                     "name": item[2] if len(item) > 2 else "",
@@ -520,7 +487,6 @@ class AdminStockWindow(QWidget):
                     "low_stock_level": item[8] if len(item) > 8 else 0
                 }
         except Exception:
-            # fallback: use limited data from table
             item_obj = {
                 "item_code": item_code,
                 "name": self.master_table.item(row, 1).text(),
@@ -536,7 +502,6 @@ class AdminStockWindow(QWidget):
         dialog.setWindowTitle("✏️ Edit Master Data")
         form = QFormLayout(dialog)
 
-        # show item code but make it read-only
         code_input = QLineEdit(item_obj.get("item_code", ""))
         code_input.setReadOnly(True)
         name_input = QLineEdit(item_obj.get("name", ""))
@@ -590,9 +555,7 @@ class AdminStockWindow(QWidget):
         batch_no = self.batch_table.item(row, 1).text()
         purchase_price = self.batch_table.item(row, 2).text()
         qty = self.batch_table.item(row, 3).text()
-        expiry_display = self.batch_table.item(
-            row, 4).text()  # formatted display
-        # But we also still have raw data in self.batches list; find matching batch to get raw expiry if available
+        expiry_display = self.batch_table.item(row, 4).text()
         expiry_raw = ""
         for b in self.batches:
             if int(b[0]) == stock_id:
@@ -613,7 +576,6 @@ class AdminStockWindow(QWidget):
         if parsed:
             expiry_input.setDate(QDate(parsed.year, parsed.month, parsed.day))
         else:
-            # set to current but we will allow user to clear later if you implement clearing
             expiry_input.setDate(QDate.currentDate())
 
         form.addRow("Purchase Price:", purchase_input)
@@ -652,10 +614,6 @@ class AdminStockWindow(QWidget):
                     self, "Error", f"❌ Failed to update batch: {e}")
 
     def reduce_qty_for_selected_batch(self):
-        """
-        Convenience: ask user qty to reduce for the selected master item (simulate billing)
-        This will call reduce_stock_quantity(item_code, qty) which reduces across batches FIFO.
-        """
         cur = self.master_table.currentRow()
         if cur < 0:
             QMessageBox.warning(self, "Select Item",
@@ -678,9 +636,8 @@ class AdminStockWindow(QWidget):
             res = reduce_stock_quantity(item_code, qty)
             msg = f"Reduced {qty}. Remaining: {res['remaining_qty']:.2f}."
             if res.get("fell_below"):
-                msg += f"Item fell below its low stock level ({res['low_stock_level']})."
+                msg += f" Item fell below its low stock level ({res['low_stock_level']})."
             QMessageBox.information(self, "Success", msg)
-            # refresh
             self.load_master_table()
             self.load_batches_for_item(item_code)
         except Exception as e:
@@ -697,13 +654,17 @@ class AdminStockWindow(QWidget):
             ws.title = "Master Stock"
 
             headers = ["Item Code", "Name", "UOM", "Sell Price",
-                       "Available Qty", "Low Level", "Status"]
+                       "Available Qty", "Low Level", "Status", "VAT %"]
             ws.append(headers)
             for row in self.consolidated:
-                item_code, name, total_qty, uom, selling_price, low_level, is_below = row
+                try:
+                    item_code, name, total_qty, uom, selling_price, vat_percentage, low_level, is_below = row
+                except Exception:
+                    vals = list(row) + [None] * (8 - len(row))
+                    item_code, name, total_qty, uom, selling_price, vat_percentage, low_level, is_below = vals
                 status = "LOW" if is_below else "OK"
                 ws.append([item_code, name, uom, selling_price,
-                          total_qty, low_level, status])
+                          total_qty, low_level, status, vat_percentage])
 
             today = datetime.date.today().strftime("%Y-%m-%d")
             fname = f"Master_Stock_{today}.xlsx"
@@ -723,7 +684,6 @@ class AdminStockWindow(QWidget):
                        "Qty", "Expiry", "Type", "Created At"]
             ws.append(headers)
             for b in self.batches:
-                # id, batch_no, purchase_price, quantity, expiry_date, stock_type, created_at
                 ws.append(list(b[:7]))
 
             today = datetime.date.today().strftime("%Y-%m-%d")
