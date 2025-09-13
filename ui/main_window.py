@@ -13,6 +13,8 @@ from ui.customer_window import CustomerWindow
 from ui.invoice_window import InvoiceWindow
 from ui.profile_window import CompanyProfileWindow
 from ui.jobwork_window import JobWorkWindow
+from ui.delivery_challan_window import DeliveryChallanWindow
+from ui.delivery_challan_tabbed import DeliveryChallanTabbedWindow
 
 
 class MainWindow(QWidget):
@@ -40,6 +42,14 @@ class MainWindow(QWidget):
         # 🧾 Job Work Invoice Tab
         self.jobwork_invoice_tab = jobwork_invoice_window.JobWorkInvoiceWindow()
         self.tabs.addTab(self.jobwork_invoice_tab, "🧾 Job Work Invoice")
+
+        # 🚚 Delivery Challan Tab
+        self.delivery_challan_tab = DeliveryChallanWindow()
+        self.tabs.addTab(self.delivery_challan_tab, "🚚 Delivery Challan")
+
+        # delivery challan tabbed (create + view/edit)
+        self.delivery_challan_tabbed = DeliveryChallanTabbedWindow()
+        self.tabs.addTab(self.delivery_challan_tabbed, "🚚 Challan (Tabbed)")
 
         # 📦 General Stock Tab (For Users)
         self.general_stock_tab = GeneralStockWindow()

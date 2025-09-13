@@ -10,7 +10,7 @@ from matplotlib.patches import Circle
 from models.dashboard_model import (
     get_total_sales, get_total_customers, get_total_pending_balance,
     get_total_jobwork, get_monthly_sales_jobwork, get_top_customers, get_low_stock_items,
-    get_available_invoice_years
+    get_available_invoice_years, get_total_purchases
 )
 
 
@@ -67,6 +67,9 @@ class DashboardWindow(QWidget):
         self.jobwork_label = QLabel()
         self.jobwork_label.setStyleSheet(
             "font-size: 16px; font-weight: bold; color: purple;")
+        self.purchase_label = QLabel()                     # <-- new
+        self.purchase_label.setStyleSheet(
+            "font-size: 16px; font-weight: bold; color: brown;")
         self.customers_label = QLabel()
         self.customers_label.setStyleSheet(
             "font-size: 16px; font-weight: bold; color: blue;")
@@ -76,6 +79,7 @@ class DashboardWindow(QWidget):
 
         summary_layout.addWidget(self.sales_label, 0, 0)
         summary_layout.addWidget(self.jobwork_label, 0, 1)
+        summary_layout.addWidget(self.purchase_label, 0, 2)
         summary_layout.addWidget(self.customers_label, 1, 0)
         summary_layout.addWidget(self.pending_label, 1, 1)
 
@@ -150,9 +154,11 @@ class DashboardWindow(QWidget):
         total_jobwork = get_total_jobwork(year)
         total_customers = get_total_customers(year)
         total_pending = get_total_pending_balance(year)
+        total_purchases = get_total_purchases(year)
 
         self.sales_label.setText(f"Total Sales: ₹{total_sales:.2f}")
         self.jobwork_label.setText(f"Total Job Work: ₹{total_jobwork:.2f}")
+        self.purchase_label.setText(f"Total Purchases: ₹{total_purchases:.2f}")
         self.customers_label.setText(f"Total Customers: {total_customers}")
         self.pending_label.setText(f"Pending Balance: ₹{total_pending:.2f}")
 

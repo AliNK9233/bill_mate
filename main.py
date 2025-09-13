@@ -13,7 +13,7 @@ initialize_company_profile_table()
 
 # 🕵️‍♂️ Encoded expiry date (base64 to obfuscate)
 # Original expiry: 2025-07-19
-encoded_expiry = "MjAyNS0wOC0zMQ=="  # base64 encoded
+encoded_expiry = "MjAyNi0wMy0zMQ=="  # base64 encoded
 
 # Decode expiry date
 try:

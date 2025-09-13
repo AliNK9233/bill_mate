@@ -128,6 +128,28 @@ def get_total_jobwork_pending(year):
     return result
 
 
+def get_total_purchases(year):
+    """
+    Get total purchase value for a given year.
+    Sums purchase_price * quantity from stock_batches for the year.
+    Returns: Float (0.0 if no purchases).
+    """
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute(
+        '''
+        SELECT COALESCE(SUM(purchase_price * quantity), 0)
+        FROM stock_batches
+        WHERE purchase_date IS NOT NULL
+          AND strftime('%Y', purchase_date) = ?
+        ''',
+        (year,)
+    )
+    result = c.fetchone()[0] or 0.0
+    conn.close()
+    return result
+
+
 def get_monthly_sales_jobwork(year):
     """
     Get monthly sales and jobwork totals for the selected year.
