@@ -1,21 +1,5 @@
 # models/delivery_model.py
-"""
-Delivery Challan model + helpers for SQLite.
 
-Tables:
- - delivery_challan: header info (company link, recipient, transport, challan_no, datetime, notes)
- - delivery_items: line items for each challan (can reference stock or be manual)
- - dc_description_suggestions: saved suggestions for the description/autocomplete
-
-Functions:
- - initialize_delivery_tables()
- - get_next_challan_no(conn=None)
- - create_challan(header_dict, items_list) -> challan_id, challan_no
- - get_challan(challan_id) / get_challan_by_no(challan_no)
- - list_challans(limit)
- - add_description_suggestion(text)
- - get_description_suggestions(prefix, limit)
-"""
 
 import sqlite3
 import os
@@ -91,6 +75,15 @@ def initialize_delivery_tables():
     conn.commit()
     conn.close()
 
+def fetch_company_profile():
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute("SELECT name, address FROM company_profile LIMIT 1")
+        row = c.fetchone()
+        conn.close()
+        if row:
+            return {"name": row[0], "address": row[1]}
+        return None
 
 def get_next_challan_no(conn=None):
     """

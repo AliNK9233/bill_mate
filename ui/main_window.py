@@ -13,10 +13,9 @@ from ui.customer_window import CustomerWindow
 from ui.invoice_window import InvoiceWindow
 from ui.profile_window import CompanyProfileWindow
 from ui.jobwork_window import JobWorkWindow
-from ui.delivery_challan_window import DeliveryChallanWindow
-from ui.delivery_challan_tabbed import DeliveryChallanTabbedWindow
+from ui.delivery_challan_tabbed import DeliveryChallanWindow
 from ui.invoice_window_normal import NormalInvoiceWindow
-
+from ui.edit_invoice_window import FullEditInvoiceWindow
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -53,7 +52,7 @@ class MainWindow(QWidget):
         # self.tabs.addTab(self.delivery_challan_tab, "🚚 Delivery Challan")
 
         # delivery challan tabbed (create + view/edit)
-        self.delivery_challan_tabbed = DeliveryChallanTabbedWindow()
+        self.delivery_challan_tabbed = DeliveryChallanWindow()
         self.tabs.addTab(self.delivery_challan_tabbed, "🚚 Delivery Challan")
 
         # 📦 General Stock Tab (For Users)
@@ -136,6 +135,12 @@ class MainWindow(QWidget):
         Add Admin tabs dynamically after successful login.
         """
         try:
+            #edit invoice tab
+            self.edit_invoice_tab = FullEditInvoiceWindow()
+            self.tabs.addTab(self.edit_invoice_tab, "📝 Edit Invoice")
+            self.admin_tabs.append(self.edit_invoice_tab)           
+
+
             # 📊 Dashboard Tab
             self.dashboard_tab = DashboardWindow()
             self.tabs.addTab(self.dashboard_tab, "📊 Dashboard")

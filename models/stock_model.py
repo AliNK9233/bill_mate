@@ -17,7 +17,7 @@ def initialize_db():
         CREATE TABLE IF NOT EXISTS stock (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            code TEXT  NOT NULL,
+            code TEXT  NOT NULL UNIQUE,
             unit TEXT NOT NULL,
             hsn_code TEXT ,
             gst_percent REAL NOT NULL
@@ -88,6 +88,33 @@ def get_stock_with_batches():
     return rows
 # Get stock item by ID
 
+def increase_stock_quantity(item_code, quantity):
+    """
+    Increases the stock quantity for a given item code by adding it to the latest batch.
+    FIXED: This now correctly updates the 'available_qty' in the 'stock_batches' table.
+    """
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    try:
+        # Find the latest batch for the given item code to add the stock back to.
+        c.execute('''
+            SELECT id FROM stock_batches
+            WHERE stock_id = (SELECT id FROM stock WHERE code = ?)
+            ORDER BY id DESC LIMIT 1
+        ''', (item_code,))
+        batch = c.fetchone()
+        
+        if not batch:
+            raise ValueError(f"No batch found for item code '{item_code}' to return stock to.")
+        
+        batch_id = batch[0]
+        c.execute("UPDATE stock_batches SET available_qty = available_qty + ? WHERE id = ?", (quantity, batch_id))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
 
 def get_item_by_code(code):
     conn = sqlite3.connect(DB_FILE)
@@ -99,9 +126,6 @@ def get_item_by_code(code):
 
 
 def get_consolidated_stock():
-    """
-    Get consolidated stock with total available quantity for each item code
-    """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute('''
@@ -180,41 +204,40 @@ def update_batch_details(code, purchase_price, selling_price, available_qty):
 
 
 def reduce_stock_quantity(item_code, qty_to_reduce):
-    """
-    Deduct quantity from the earliest available batches (FIFO).
-    """
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+    try:
+        c.execute('''
+            SELECT id, available_qty FROM stock_batches
+            WHERE stock_id = (SELECT id FROM stock WHERE code=?)
+            ORDER BY id
+        ''', (item_code,))
+        batches = c.fetchall()
+        qty_left = qty_to_reduce
+        for batch_id, available_qty in batches:
+            if qty_left <= 0: break
+            if available_qty >= qty_left:
+                c.execute('UPDATE stock_batches SET available_qty = available_qty - ? WHERE id=?', (qty_left, batch_id))
+                qty_left = 0
+            else:
+                c.execute('UPDATE stock_batches SET available_qty = 0 WHERE id=?', (batch_id,))
+                qty_left -= available_qty
+        if qty_left > 0:
+            # This case means there wasn't enough stock across all batches.
+            # The transaction will be rolled back by the `raise`.
+            raise ValueError(f"Not enough stock for item {item_code}. Cannot reduce by {qty_to_reduce}.")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
 
-    # Get all batches of the item ordered by batch_id (FIFO)
-    c.execute('''
-        SELECT id, available_qty FROM stock_batches
-        WHERE stock_id = (SELECT id FROM stock WHERE code=?)
-        ORDER BY id
-    ''', (item_code,))
-    batches = c.fetchall()
 
-    qty_left = qty_to_reduce
-
-    for batch_id, available_qty in batches:
-        if qty_left <= 0:
-            break
-        if available_qty >= qty_left:
-            # Reduce from this batch
-            c.execute('''
-                UPDATE stock_batches
-                SET available_qty = available_qty - ?
-                WHERE id=?
-            ''', (qty_left, batch_id))
-            qty_left = 0
-        else:
-            # Set this batch qty to 0 and move to next batch
-            c.execute('''
-                UPDATE stock_batches
-                SET available_qty = 0
-                WHERE id=?
-            ''', (batch_id,))
-            qty_left -= available_qty
-
-    conn.commit()
+def get_consolidated_stock_for_challan():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT code, name, hsn_code, unit FROM stock ORDER BY name")
+    rows = c.fetchall()
     conn.close()
+    return [{"code": r[0], "name": r[1], "hsn_code": r[2] or "", "unit": r[3] or ""} for r in rows]
